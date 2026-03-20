@@ -12,6 +12,10 @@
 ![MLOps](https://img.shields.io/badge/MLOps-Agentic%20Pipeline-6D28D9)
 ![Status](https://img.shields.io/badge/Status-Active%20Build-059669)
 
+## Project description
+
+Autonomous Retail Shrinkage Agent is an end-to-end AI operations demo that detects suspicious shelf behavior, validates incidents against POS activity, and generates actionable escalation records through APIs and a real-time dashboard.
+
 ## Business and engineering value
 
 This project models a practical retail operations workflow instead of a standalone ML demo:
