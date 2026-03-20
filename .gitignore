@@ -28,6 +28,9 @@ build/
 # Logs and runtime data
 *.log
 data/
+yolo*.pt
+yolov8*.pt
+reports/private/
 
 # IDE/editor
 .vscode/

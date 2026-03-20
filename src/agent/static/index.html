@@ -273,6 +273,15 @@
       border: 2px solid transparent; border-radius: var(--radius);
       transition: border-color .4s;
     }
+    .camera-detection {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border-radius: var(--radius);
+      z-index: 6;
+    }
     .camera-overlay.alert { border-color: var(--red); }
     .camera-overlay.clear { border-color: var(--green); }
     .camera-hud {
@@ -506,6 +515,26 @@
     }
     .kv .k { color: var(--text-secondary); }
     .kv .v { color: #fff; word-break: break-word; }
+    .copilot-note {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+    .copilot-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: .6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      border: 1px solid rgba(255,255,255,0.16);
+    }
+    .copilot-pill.high, .copilot-pill.critical { color: var(--red); border-color: rgba(255,69,58,0.35); }
+    .copilot-pill.medium { color: var(--orange); border-color: rgba(255,159,10,0.35); }
+    .copilot-pill.low { color: var(--green); border-color: rgba(48,209,88,0.35); }
     @media (max-width: 768px) {
       .feed-layout { grid-template-columns: 1fr; }
       .metrics-grid { grid-template-columns: repeat(2, 1fr); }
@@ -614,6 +643,7 @@
         <div class="stat"><div class="val" id="hudIncidents">0</div><div class="lbl">Incidents</div></div>
         <div class="stat"><div class="val" id="hudStatus">Monitoring</div><div class="lbl">Agent Status</div></div>
       </div>
+      <canvas id="detectionCanvas" class="camera-detection"></canvas>
     </div>
 
     <div class="feed-side">
@@ -622,10 +652,54 @@
         <div class="event-log" id="eventLog">Waiting for camera...</div>
       </div>
       <div class="glass">
+        <div class="card-title">Object Detector</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px;">
+          <span>Profile</span>
+          <select id="detectorProfile" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:var(--text);font-size:12px;">
+            <option value="balanced">Balanced</option>
+            <option value="speed">High-Speed</option>
+            <option value="accuracy">High-Accuracy</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px;">
+          <span>Model</span>
+          <select id="detectorModelVariant" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:var(--text);font-size:12px;">
+            <option value="pretrained">YOLO Pretrained (COCO)</option>
+            <option value="custom">Custom Trained</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text-secondary);">
+          <span>Model Device</span><strong id="detectorDevice">Initializing...</strong>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--text-secondary);">
+          <span>Last Frame Objects</span><strong id="detectorCount">0</strong>
+        </div>
+        <div style="font-size:12px;color:#888;margin-top:10px;" id="detectorMsg">Waiting for camera frames...</div>
+      </div>
+      <div class="glass">
         <div class="card-title">Agent Actions</div>
         <div style="display:flex;flex-direction:column;gap:8px;" id="agentActions">
           <div style="color:var(--text-secondary);font-size:13px;">No actions yet.</div>
         </div>
+      </div>
+      <div class="glass">
+        <div class="card-title">Agentic Copilot</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text-secondary);">Mode</span>
+          <span id="copilotMode" style="font-size:12px;color:#fff;">Checking...</span>
+        </div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text-secondary);">Risk</span>
+          <span class="copilot-pill medium" id="copilotRisk">Medium</span>
+        </div>
+        <div class="copilot-note" id="copilotNarrative">Copilot narrative will appear here.</div>
+        <div style="margin-top:8px;font-size:12px;color:#fff;" id="copilotAction"></div>
+        <div class="copilot-note" id="copilotPossibilities"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;">
+          <input id="copilotQuestion" placeholder="Ask: why was this alert raised?" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:var(--text);font-size:12px;">
+          <button class="btn btn-outline" id="copilotAsk" style="padding:10px 12px;font-size:12px;">Ask</button>
+        </div>
+        <div class="copilot-note" id="copilotAnswer">No question asked yet.</div>
       </div>
       <button class="btn btn-primary" style="width:100%" id="feedDemo">Simulate Theft Scenario</button>
     </div>
@@ -815,6 +889,17 @@
   let lastAlertAt = "--";
   let lastFramesSnapshot = 0;
   let lastFramesSnapshotTs = Date.now();
+  let detectorLoopHandle = null;
+  let detectorBusy = false;
+  let detectorModelVariant = localStorage.getItem('detectorModelVariant') || 'pretrained';
+  let copilotBusy = false;
+  let copilotLastRefreshAt = 0;
+  const detectorProfiles = {
+    speed: { intervalMs: 500, confThreshold: 0.42, maxDetections: 10, maxInputWidth: 512, jpegQuality: 0.6 },
+    balanced: { intervalMs: 800, confThreshold: 0.35, maxDetections: 15, maxInputWidth: 768, jpegQuality: 0.72 },
+    accuracy: { intervalMs: 1200, confThreshold: 0.25, maxDetections: 20, maxInputWidth: 1024, jpegQuality: 0.86 },
+  };
+  let detectorProfileKey = localStorage.getItem('detectorProfile') || 'balanced';
   const soundState = {
     enabled: false,
     volume: 0.32,
@@ -839,6 +924,7 @@
       cameraActive = true;
       document.getElementById('feedLabel').textContent = 'Live';
       simulateContinuousFeed();
+      startDetectionLoop();
     } catch {
       video.poster = '';
       video.style.background = 'linear-gradient(135deg,#0a0a0a,#1a1a2e)';
@@ -846,6 +932,7 @@
       document.getElementById('feedLabel').textContent = 'Simulated';
       cameraActive = false;
       simulateContinuousFeed();
+      setDetectorStatus('Simulated mode: camera unavailable, detector idle.', 'N/A', 0);
     }
   }
 
@@ -914,6 +1001,113 @@
     el.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
     box.prepend(el);
     while (box.children.length > 10) box.removeChild(box.lastChild);
+  }
+
+  function setDetectorStatus(msg, device, count) {
+    const msgEl = document.getElementById('detectorMsg');
+    const devEl = document.getElementById('detectorDevice');
+    const countEl = document.getElementById('detectorCount');
+    if (msgEl) msgEl.textContent = msg;
+    if (devEl && device != null) devEl.textContent = String(device);
+    if (countEl && Number.isFinite(count)) countEl.textContent = String(count);
+  }
+
+  function startDetectionLoop() {
+    if (!cameraActive) return;
+    if (detectorLoopHandle) clearInterval(detectorLoopHandle);
+    const p = detectorProfiles[detectorProfileKey] || detectorProfiles.balanced;
+    detectorLoopHandle = setInterval(runFrameDetection, p.intervalMs);
+  }
+
+  async function runFrameDetection() {
+    if (!cameraActive || detectorBusy) return;
+    const video = document.getElementById('cameraFeed');
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    detectorBusy = true;
+    try {
+      const capture = captureCurrentFrameBase64(video);
+      if (!capture) return;
+      const profile = detectorProfiles[detectorProfileKey] || detectorProfiles.balanced;
+      const res = await fetch('/vision/detect-frame', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: capture.imageBase64,
+          conf_threshold: profile.confThreshold,
+          max_detections: profile.maxDetections,
+          model_variant: detectorModelVariant,
+        }),
+      });
+      const data = await res.json();
+      const detections = Array.isArray(data.detections) ? data.detections : [];
+      drawDetections(detections, capture.frameWidth, capture.frameHeight);
+      const statusMsg = data.model_ready
+        ? `Live detection active (${detections.length} objects)`
+        : `Detector not ready: ${data.message || 'unknown'}`;
+      setDetectorStatus(statusMsg, data.device || 'unknown', detections.length);
+    } catch {
+      setDetectorStatus('Detector request failed.', 'unknown', 0);
+    } finally {
+      detectorBusy = false;
+    }
+  }
+
+  function captureCurrentFrameBase64(videoEl) {
+    const canvas = document.getElementById('cameraCanvas');
+    if (!canvas || !videoEl.videoWidth || !videoEl.videoHeight) return null;
+    const profile = detectorProfiles[detectorProfileKey] || detectorProfiles.balanced;
+    const maxW = profile.maxInputWidth;
+    const aspect = videoEl.videoHeight / videoEl.videoWidth;
+    const targetW = Math.min(videoEl.videoWidth, maxW);
+    const targetH = Math.max(1, Math.round(targetW * aspect));
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', profile.jpegQuality);
+    const imageBase64 = dataUrl.split(',')[1] || null;
+    if (!imageBase64) return null;
+    return { imageBase64, frameWidth: canvas.width, frameHeight: canvas.height };
+  }
+
+  function drawDetections(detections, frameWidth, frameHeight) {
+    const canvas = document.getElementById('detectionCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const drawWidth = Math.max(1, Math.round(rect.width * dpr));
+    const drawHeight = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== drawWidth || canvas.height !== drawHeight) {
+      canvas.width = drawWidth;
+      canvas.height = drawHeight;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!detections.length || !frameWidth || !frameHeight) return;
+
+    const sx = canvas.width / frameWidth;
+    const sy = canvas.height / frameHeight;
+    ctx.lineWidth = 2 * dpr;
+    ctx.font = `${12 * dpr}px Inter, sans-serif`;
+    detections.forEach((d) => {
+      const x = d.x1 * sx;
+      const y = d.y1 * sy;
+      const w = (d.x2 - d.x1) * sx;
+      const h = (d.y2 - d.y1) * sy;
+      const label = `${d.label} ${(Number(d.confidence || 0) * 100).toFixed(0)}%`;
+      ctx.strokeStyle = 'rgba(41, 151, 255, 0.95)';
+      ctx.fillStyle = 'rgba(41, 151, 255, 0.18)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+      const tw = ctx.measureText(label).width + 10 * dpr;
+      const th = 18 * dpr;
+      ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+      ctx.fillRect(x, Math.max(0, y - th), tw, th);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, x + 5 * dpr, Math.max(12 * dpr, y - 5 * dpr));
+    });
   }
 
   // ── Data refresh ──
@@ -1034,7 +1228,44 @@
         document.getElementById('checkoutBar').style.width = (cp*100)+'%';
         document.getElementById('exitBar').style.width = (ep*100)+'%';
       }
+      if (Date.now() - copilotLastRefreshAt > 7000) {
+        refreshCopilotBrief();
+      }
     } catch {}
+  }
+
+  async function refreshCopilotBrief() {
+    if (copilotBusy) return;
+    copilotBusy = true;
+    try {
+      const [status, brief] = await Promise.all([
+        fetch('/copilot/status').then(r => r.json()),
+        fetch('/copilot/brief').then(r => r.json()),
+      ]);
+      copilotLastRefreshAt = Date.now();
+      const modeEl = document.getElementById('copilotMode');
+      if (modeEl) modeEl.textContent = `${status.mode || 'unknown'} (${status.model || 'n/a'})`;
+      const risk = (brief.risk_level || 'medium').toLowerCase();
+      const riskEl = document.getElementById('copilotRisk');
+      if (riskEl) {
+        riskEl.textContent = risk;
+        riskEl.className = `copilot-pill ${risk}`;
+      }
+      const narrativeEl = document.getElementById('copilotNarrative');
+      if (narrativeEl) narrativeEl.textContent = brief.narrative || 'No copilot narrative.';
+      const actionEl = document.getElementById('copilotAction');
+      if (actionEl) actionEl.textContent = brief.recommended_action ? `Action: ${brief.recommended_action}` : '';
+      const posEl = document.getElementById('copilotPossibilities');
+      if (posEl) {
+        const arr = Array.isArray(brief.possibilities) ? brief.possibilities : [];
+        posEl.textContent = arr.length ? `Possibilities: ${arr.join(' | ')}` : '';
+      }
+    } catch {
+      const modeEl = document.getElementById('copilotMode');
+      if (modeEl) modeEl.textContent = 'Unavailable';
+    } finally {
+      copilotBusy = false;
+    }
   }
 
   function renderZoneMap(zones) {
@@ -1227,6 +1458,81 @@
       } else if (ev.key === 'm' || ev.key === 'M') {
         ev.preventDefault();
         document.getElementById('soundToggle')?.click();
+      } else if (ev.key === '1') {
+        ev.preventDefault();
+        setDetectorProfile('speed');
+      } else if (ev.key === '2') {
+        ev.preventDefault();
+        setDetectorProfile('balanced');
+      } else if (ev.key === '3') {
+        ev.preventDefault();
+        setDetectorProfile('accuracy');
+      }
+    });
+  }
+
+  function setDetectorProfile(nextProfile) {
+    if (!detectorProfiles[nextProfile]) return;
+    detectorProfileKey = nextProfile;
+    localStorage.setItem('detectorProfile', nextProfile);
+    const profileSelect = document.getElementById('detectorProfile');
+    if (profileSelect && profileSelect.value !== nextProfile) {
+      profileSelect.value = nextProfile;
+    }
+    const p = detectorProfiles[nextProfile];
+    addAction(`Detector profile switched to ${nextProfile.toUpperCase()} (interval ${p.intervalMs}ms, width ${p.maxInputWidth}).`, 'accent');
+    setDetectorStatus(`Profile: ${nextProfile.toUpperCase()} | conf=${p.confThreshold}, maxDet=${p.maxDetections}`, document.getElementById('detectorDevice')?.textContent || 'unknown', Number(document.getElementById('detectorCount')?.textContent || 0));
+    if (cameraActive) startDetectionLoop();
+  }
+
+  function initDetectorProfileControls() {
+    const profileSelect = document.getElementById('detectorProfile');
+    if (!profileSelect) return;
+    if (!detectorProfiles[detectorProfileKey]) detectorProfileKey = 'balanced';
+    profileSelect.value = detectorProfileKey;
+    profileSelect.addEventListener('change', () => {
+      setDetectorProfile(profileSelect.value);
+    });
+    setDetectorProfile(detectorProfileKey);
+  }
+
+  function initDetectorModelControls() {
+    const select = document.getElementById('detectorModelVariant');
+    if (!select) return;
+    if (!['pretrained', 'custom'].includes(detectorModelVariant)) detectorModelVariant = 'pretrained';
+    select.value = detectorModelVariant;
+    select.addEventListener('change', () => {
+      detectorModelVariant = select.value;
+      localStorage.setItem('detectorModelVariant', detectorModelVariant);
+      addAction(`Detector model switched to ${detectorModelVariant === 'pretrained' ? 'YOLO PRETRAINED' : 'CUSTOM TRAINED'}.`, 'accent');
+    });
+  }
+
+  function initCopilotControls() {
+    const askBtn = document.getElementById('copilotAsk');
+    const qEl = document.getElementById('copilotQuestion');
+    const ansEl = document.getElementById('copilotAnswer');
+    if (!askBtn || !qEl || !ansEl) return;
+    askBtn.addEventListener('click', async () => {
+      const q = qEl.value.trim();
+      if (!q) return;
+      askBtn.disabled = true;
+      ansEl.textContent = 'Thinking...';
+      try {
+        const res = await fetch('/copilot/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q }),
+        });
+        const data = await res.json();
+        ansEl.textContent = data.answer || 'No answer.';
+        if (data.recommended_action) {
+          addAction(`Copilot: ${data.recommended_action}`, 'accent');
+        }
+      } catch {
+        ansEl.textContent = 'Copilot request failed.';
+      } finally {
+        askBtn.disabled = false;
       }
     });
   }
@@ -1359,6 +1665,9 @@
 
   // ── Init ──
   initSoundEngine();
+  initDetectorProfileControls();
+  initDetectorModelControls();
+  initCopilotControls();
   initMicroInteractions();
   initKeyboardShortcuts();
   startCamera();

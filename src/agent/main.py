@@ -1,3 +1,5 @@
+import base64
+import binascii
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -7,8 +9,10 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from src.agent.copilot import AgenticCopilotService
 from src.incidents.manager import IncidentManager
 from src.vision.detector import SuspiciousEvent
+from src.vision.detection_service import DetectionService
 from src.vision.pipeline import VisionPipeline
 from src.vision.schemas import ObservationIn, ObservationResponse, SuspiciousEventOut
 
@@ -16,6 +20,8 @@ app = FastAPI(title="Retail Loss Prevention Intelligence Platform", version="0.4
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 pipeline = VisionPipeline()
 incident_manager = IncidentManager()
+detection_service = DetectionService()
+copilot_service = AgenticCopilotService()
 frame_counter: dict[str, int] = {"total": 0}
 static_dir = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -94,6 +100,17 @@ class ReviewActionIn(BaseModel):
     notes: str | None = None
 
 
+class FrameDetectIn(BaseModel):
+    image_base64: str
+    conf_threshold: float = 0.3
+    max_detections: int = 20
+    model_variant: str = "pretrained"
+
+
+class CopilotQuestionIn(BaseModel):
+    question: str
+
+
 @app.post("/incidents/{incident_id}/review")
 def review_incident(incident_id: str, payload: ReviewActionIn) -> dict[str, object]:
     updated = incident_manager.update_review(
@@ -104,6 +121,75 @@ def review_incident(incident_id: str, payload: ReviewActionIn) -> dict[str, obje
     if updated is None:
         return {"ok": False, "error": "incident_not_found"}
     return {"ok": True, "incident": updated.model_dump()}
+
+
+@app.post("/vision/detect-frame")
+def detect_frame(payload: FrameDetectIn) -> dict[str, object]:
+    try:
+        image_bytes = base64.b64decode(payload.image_base64, validate=True)
+    except (binascii.Error, ValueError):
+        return {
+            "ok": False,
+            "detections": [],
+            "model_ready": False,
+            "message": "invalid_image_base64",
+        }
+    result = detection_service.detect(
+        image_bytes=image_bytes,
+        conf_threshold=payload.conf_threshold,
+        max_detections=payload.max_detections,
+        model_variant=payload.model_variant,
+    )
+    return {
+        "ok": True,
+        "detections": result.detections,
+        "model_ready": result.model_ready,
+        "message": result.message,
+        "device": result.device,
+    }
+
+
+def _copilot_context() -> dict[str, object]:
+    incidents = [x.model_dump() for x in incident_manager.list_incidents(count=10)]
+    latest = incidents[-1] if incidents else None
+    events = [_serialize_event(e).model_dump() for e in pipeline.recent_events() if e is not None]
+    return {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "metrics": metrics(),
+        "latest_incident": latest,
+        "recent_incidents": incidents,
+        "recent_events": events[-8:],
+        "behavior_tail": behavior_history()[-12:],
+    }
+
+
+@app.get("/copilot/status")
+def copilot_status() -> dict[str, object]:
+    return copilot_service.status()
+
+
+@app.get("/copilot/brief")
+def copilot_brief() -> dict[str, object]:
+    result = copilot_service.generate_brief(_copilot_context())
+    return {
+        "narrative": result.narrative,
+        "risk_level": result.risk_level,
+        "recommended_action": result.recommended_action,
+        "possibilities": result.possibilities,
+        "source": result.source,
+    }
+
+
+@app.post("/copilot/chat")
+def copilot_chat(payload: CopilotQuestionIn) -> dict[str, object]:
+    result = copilot_service.answer_question(payload.question, _copilot_context())
+    return {
+        "answer": result.narrative,
+        "risk_level": result.risk_level,
+        "recommended_action": result.recommended_action,
+        "possibilities": result.possibilities,
+        "source": result.source,
+    }
 
 
 @app.get("/incidents/export.csv")

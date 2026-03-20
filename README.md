@@ -14,7 +14,14 @@
 
 ## Project description
 
-An end-to-end AI loss-prevention system that goes beyond object disappearance rules. It models suspicious intent using multi-stage behavior patterns, spatial movement through store zones, and transaction validation before escalation.
+An end-to-end AI loss-prevention platform designed to emulate real retail operations, not just computer-vision demos. The system combines live object detection, behavioral pattern analysis, zone-aware trajectory reasoning, POS cross-checks, incident packaging, and an agentic copilot for operator guidance.
+
+## Business outcomes this demonstrates
+
+- Reduce false-positive alerts by validating suspicious behavior against POS signals.
+- Improve response speed with auto-generated incident clips and recommended actions.
+- Improve auditability with explainable reasoning chains for each decision.
+- Enable frontline teams with a natural-language copilot that summarizes risk in plain terms.
 
 ## What makes this unique
 
@@ -54,10 +61,19 @@ flowchart LR
 5. Generates an incident-centered 5-second clip.
 6. Sends a structured Slack alert with evidence and reason code.
 
+## Production capabilities delivered
+
+- GPU-accelerated detection pipeline (RTX-ready) with realtime overlay rendering.
+- Pretrained YOLO mode for broad object classes (person, bottle, bag, phone, etc.).
+- Local fine-tuning workflow for custom detector training on retail-relevant classes.
+- Agentic copilot APIs for incident briefs and contextual operator Q&A.
+- Human review workflow with filtering, export, and incident lifecycle controls.
+
 ## Visual dashboard
 
 Open `http://localhost:8080/` to access a polished operations dashboard with:
 - Live camera/simulated feed with detection HUD
+- Live object-detection overlays (bounding boxes + labels) on camera layout
 - Incident metrics and real-time event stream
 - Explainable reasoning chain panel (latest verdict with steps)
 - Behavioral timeline (micro-behavior chips)
@@ -107,6 +123,54 @@ pip install -e .[dev]
 uvicorn src.agent.main:app --reload --port 8080
 ```
 
+### GPU setup (recommended for RTX 3050)
+
+```powershell
+.\scripts\setup_gpu.ps1
+```
+
+This installs CUDA-enabled PyTorch (`cu121`) and runs YOLO inference on `cuda:0` when available.
+
+### Download retail-relevant dataset assets
+
+```powershell
+python .\scripts\download_retail_relevant_data.py --sample-count 300
+```
+
+This downloads COCO validation assets and builds `data/datasets/coco/retail_relevant_val_manifest.json`
+with retail-relevant classes (person, backpack, handbag, bottle, phone, etc.).
+
+### Prepare local training dataset + train on RTX 3050
+
+```powershell
+python .\scripts\prepare_retail_yolo_dataset.py --sample-count 600 --val-split 0.2
+python .\scripts\train_local_detector.py --epochs 30 --imgsz 640 --batch 16 --device 0
+```
+
+Recommended starting config for your laptop GPU:
+- `model`: `yolov8n.pt`
+- `imgsz`: `640`
+- `batch`: `16` (drop to `8` if VRAM gets tight)
+- `epochs`: `30` for baseline, `60+` for better quality
+
+After training, point the live detector to your custom checkpoint:
+
+```powershell
+$env:DETECTOR_MODEL_PATH = "C:\Users\nikhi_d2rd8hd\runs\detect\runs\train\retail-rtx3050-run1\weights\best.pt"
+$env:DETECTOR_DEVICE = "cuda:0"
+uvicorn src.agent.main:app --reload --port 8080
+```
+
+Detector performance profiles in dashboard:
+- `High-Speed`: lower input width, faster interval, higher confidence threshold
+- `Balanced`: default profile for day-to-day use
+- `High-Accuracy`: larger input width, slower interval, lower threshold for recall
+
+Shortcuts:
+- `1` -> High-Speed
+- `2` -> Balanced
+- `3` -> High-Accuracy
+
 Run mock POS in another terminal:
 
 ```powershell
@@ -122,10 +186,28 @@ Demo endpoints:
 - `GET /` dashboard UI
 - `POST /demo/run` run multi-stage theft scenario with zone progression
 - `GET /vision/events` suspicious event stream
+- `POST /vision/detect-frame` real-time object detection for UI overlay
+- `GET /copilot/status` agentic copilot status (Gemini/fallback mode)
+- `GET /copilot/brief` live AI operations brief with risk + actions
+- `POST /copilot/chat` ask copilot natural-language questions
 - `GET /incidents` processed incident objects
 - `GET /metrics` dashboard counters
 - `GET /behavior/history` recent micro-behavior signals
 - `GET /zones` store layout and zone metadata
+
+## Agentic Copilot (Gemini + FastAPI)
+
+The dashboard now includes an **Agentic Copilot** that explains what is happening,
+estimates risk level, suggests actions, and answers operator questions.
+
+Configure Gemini (optional, recommended):
+
+```powershell
+$env:GEMINI_API_KEY = "your_key_here"
+$env:GEMINI_MODEL = "gemini-2.5-flash"
+```
+
+If key is not configured, copilot runs in deterministic local fallback mode.
 
 ## Docker run
 
