@@ -1,54 +1,56 @@
-<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#0B1020"/>
-      <stop offset="0.5" stop-color="#111B3A"/>
-      <stop offset="1" stop-color="#123E5D"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1220"/>
+      <stop offset="55%" stop-color="#172554"/>
+      <stop offset="100%" stop-color="#0E7490"/>
     </linearGradient>
-    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0EA5E9"/>
-      <stop offset="1" stop-color="#14B8A6"/>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#34D399"/>
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
 
-  <rect width="1280" height="640" fill="url(#bg)"/>
-  <circle cx="180" cy="120" r="110" fill="#0EA5E9" opacity="0.12"/>
-  <circle cx="1120" cy="520" r="180" fill="#14B8A6" opacity="0.12"/>
+  <rect x="0" y="0" width="1280" height="420" fill="url(#bg)"/>
+  <rect x="36" y="30" width="1208" height="360" rx="24" fill="#020617" fill-opacity="0.35" stroke="#334155"/>
 
-  <g opacity="0.25">
-    <rect x="80" y="380" width="120" height="180" rx="12" stroke="#8CD6FF"/>
-    <rect x="230" y="340" width="120" height="220" rx="12" stroke="#8CD6FF"/>
-    <rect x="380" y="300" width="120" height="260" rx="12" stroke="#8CD6FF"/>
-    <rect x="530" y="330" width="120" height="230" rx="12" stroke="#8CD6FF"/>
-    <rect x="680" y="360" width="120" height="200" rx="12" stroke="#8CD6FF"/>
+  <g opacity="0.3" stroke="#7DD3FC">
+    <line x1="70" y1="350" x2="570" y2="350"/>
+    <line x1="70" y1="322" x2="570" y2="322"/>
+    <line x1="70" y1="294" x2="570" y2="294"/>
+    <line x1="70" y1="266" x2="570" y2="266"/>
   </g>
 
-  <g filter="url(#glow)">
-    <rect x="830" y="120" width="360" height="220" rx="18" fill="#0B1228" stroke="#22D3EE"/>
-    <text x="860" y="170" fill="#A5F3FC" font-size="24" font-family="Segoe UI, Arial, sans-serif" font-weight="600">Incident Alert</text>
-    <text x="860" y="205" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">Type: Suspected concealment</text>
-    <text x="860" y="232" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">Confidence: 0.92</text>
-    <text x="860" y="259" fill="#E2E8F0" font-size="16" font-family="Segoe UI, Arial, sans-serif">POS Match: No</text>
-    <rect x="860" y="280" width="130" height="34" rx="8" fill="url(#card)"/>
-    <text x="878" y="303" fill="#062B2D" font-size="15" font-family="Segoe UI, Arial, sans-serif" font-weight="700">ESCALATED</text>
-  </g>
+  <rect x="72" y="70" width="690" height="178" rx="18" fill="#020617" fill-opacity="0.72" stroke="#475569"/>
+  <text x="104" y="132" fill="#F8FAFC" font-family="Segoe UI, Arial, sans-serif" font-size="48" font-weight="700">
+    Autonomous Retail Shrinkage Agent
+  </text>
+  <text x="104" y="176" fill="#A5F3FC" font-family="Segoe UI, Arial, sans-serif" font-size="24">
+    Vision + POS Intelligence for Real-Time Incident Response
+  </text>
+  <text x="104" y="212" fill="#CBD5E1" font-family="Segoe UI, Arial, sans-serif" font-size="18">
+    Detect -> Validate -> Clip -> Alert
+  </text>
 
-  <rect x="70" y="90" width="690" height="210" rx="20" fill="#060B19" fill-opacity="0.62" stroke="#334155"/>
-  <text x="105" y="170" fill="#F8FAFC" font-size="52" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Autonomous Retail</text>
-  <text x="105" y="232" fill="#67E8F9" font-size="52" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Shrinkage Agent</text>
-  <text x="105" y="275" fill="#CBD5E1" font-size="24" font-family="Segoe UI, Arial, sans-serif">Vision + POS Intelligence for Real-Time Incident Response</text>
+  <rect x="810" y="74" width="392" height="136" rx="16" fill="#0F172A" stroke="#22D3EE"/>
+  <text x="840" y="112" fill="#CCFBF1" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="600">Incident Alert</text>
+  <text x="840" y="140" fill="#E2E8F0" font-family="Segoe UI, Arial, sans-serif" font-size="16">Event: Suspected concealment</text>
+  <text x="840" y="164" fill="#E2E8F0" font-family="Segoe UI, Arial, sans-serif" font-size="16">Confidence: 0.92  |  POS Match: No</text>
+  <rect x="840" y="176" width="132" height="24" rx="12" fill="url(#accent)"/>
+  <text x="871" y="193" fill="#052E2B" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700">ESCALATED</text>
 
-  <g opacity="0.9">
-    <rect x="850" y="390" width="330" height="170" rx="16" fill="#071322" stroke="#1E293B"/>
-    <text x="880" y="430" fill="#BFDBFE" font-size="19" font-family="Consolas, monospace">event -> pos_check -> action</text>
-    <text x="880" y="468" fill="#86EFAC" font-size="17" font-family="Consolas, monospace">if mismatch: clip + notify</text>
-    <text x="880" y="505" fill="#C4B5FD" font-size="17" font-family="Consolas, monospace">audit_id: inc_20260320_1015</text>
+  <rect x="810" y="234" width="392" height="124" rx="16" fill="#0B1324" stroke="#1E293B"/>
+  <text x="840" y="268" fill="#BFDBFE" font-family="Consolas, monospace" font-size="17">pipeline:</text>
+  <text x="840" y="292" fill="#93C5FD" font-family="Consolas, monospace" font-size="15">vision_event -> pos_check</text>
+  <text x="840" y="314" fill="#86EFAC" font-family="Consolas, monospace" font-size="15">if mismatch: clip + slack_notify</text>
+  <text x="840" y="336" fill="#C4B5FD" font-family="Consolas, monospace" font-size="15">incident_id: inc_20260320_1015</text>
+
+  <g>
+    <rect x="74" y="276" width="128" height="88" rx="10" fill="none" stroke="#38BDF8"/>
+    <rect x="224" y="276" width="128" height="88" rx="10" fill="none" stroke="#38BDF8"/>
+    <rect x="374" y="276" width="128" height="88" rx="10" fill="none" stroke="#38BDF8"/>
+    <rect x="524" y="276" width="128" height="88" rx="10" fill="none" stroke="#38BDF8"/>
+    <path d="M202 320H224M352 320H374M502 320H524M652 320H760" stroke="#22D3EE" stroke-width="2"/>
+    <circle cx="760" cy="320" r="4" fill="#22D3EE"/>
   </g>
 </svg>
