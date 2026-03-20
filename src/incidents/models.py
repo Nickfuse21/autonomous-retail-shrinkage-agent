@@ -14,3 +14,8 @@ class Incident(BaseModel):
     status: str
     clip_path: str
     slack_delivery: str
+    behavior_pattern: str | None = None
+    zone_heading: str | None = None
+    zone_exit_probability: float | None = None
+    reasoning_narrative: str | None = None
+    reasoning_chain: dict[str, object] | None = None

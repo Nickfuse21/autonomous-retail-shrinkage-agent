@@ -247,6 +247,35 @@
     .fade-in { opacity: 0; transform: translateY(30px); transition: opacity .7s, transform .7s; }
     .fade-in.visible { opacity: 1; transform: translateY(0); }
 
+    .behavior-chip {
+      padding: 6px 14px; border-radius: 980px; font-size: 11px; font-weight: 600;
+      letter-spacing: .3px; border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04); color: var(--text-secondary);
+      transition: all .3s;
+    }
+    .behavior-chip.suspicious { background: rgba(255,69,58,0.12); color: var(--red); border-color: rgba(255,69,58,0.2); }
+    .behavior-chip.normal { background: rgba(48,209,88,0.1); color: var(--green); border-color: rgba(48,209,88,0.15); }
+    .behavior-chip.warning { background: rgba(255,159,10,0.12); color: var(--orange); border-color: rgba(255,159,10,0.2); }
+    .reasoning-step {
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 13px; line-height: 1.6;
+    }
+    .reasoning-step .step-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+    .zone-block {
+      position: absolute; border-radius: 6px; border: 1px solid; font-size: 9px;
+      font-weight: 600; display: flex; align-items: center; justify-content: center;
+      text-transform: uppercase; letter-spacing: .5px; opacity: 0.7;
+      transition: opacity .3s;
+    }
+    .zone-block:hover { opacity: 1; }
+    .zone-dot {
+      position: absolute; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent);
+      transition: all .5s; z-index: 10;
+    }
     @media (max-width: 768px) {
       .feed-layout { grid-template-columns: 1fr; }
       .metrics-grid { grid-template-columns: repeat(2, 1fr); }
@@ -263,6 +292,8 @@
       <a href="#liveFeedSection">Live Feed</a>
       <a href="#metricsSection">Metrics</a>
       <a href="#incidentSection">Incidents</a>
+      <a href="#reasoningSection">Reasoning</a>
+      <a href="#zoneSection">Zone Map</a>
       <a href="#archSection">Architecture</a>
     </div>
   </div>
@@ -367,6 +398,60 @@
   </div>
 </section>
 
+<!-- REASONING CHAIN -->
+<section id="reasoningSection" style="border-top: 1px solid rgba(255,255,255,0.06); background: radial-gradient(ellipse 60% 50% at 30% 0%, rgba(255,159,10,0.06), transparent);">
+  <div class="section-label fade-in">Explainable AI</div>
+  <div class="section-title fade-in">Every decision. Fully explained.</div>
+  <div class="section-sub fade-in">The reasoning engine produces a step-by-step chain showing exactly why an incident was escalated or resolved. No black boxes.</div>
+  <div style="margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="fade-in">
+    <div class="glass" style="padding:28px;">
+      <div class="card-title">Latest Reasoning Chain</div>
+      <div id="reasoningChain" style="font-size:13px;line-height:1.8;color:var(--text-secondary);">Run a demo to see the reasoning chain.</div>
+    </div>
+    <div class="glass" style="padding:28px;">
+      <div class="card-title">Behavioral Sequence Timeline</div>
+      <div id="behaviorTimeline" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+      <div style="margin-top:16px;font-size:12px;color:#555;">Micro-behaviors detected across the observation window.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ZONE MAP -->
+<section id="zoneSection" style="border-top: 1px solid rgba(255,255,255,0.06); background: radial-gradient(ellipse 60% 50% at 70% 100%, rgba(48,209,88,0.06), transparent);">
+  <div class="section-label fade-in">Spatial Intelligence</div>
+  <div class="section-title fade-in">Zone-aware trajectory analysis.</div>
+  <div class="section-sub fade-in">The agent tracks person movement across store zones and classifies whether the trajectory heads toward checkout or exit.</div>
+  <div style="margin-top:40px;display:grid;grid-template-columns:1.4fr 1fr;gap:20px;" class="fade-in">
+    <div class="glass" style="padding:24px;position:relative;">
+      <div class="card-title">Store Zone Map</div>
+      <div id="zoneMap" style="position:relative;width:100%;aspect-ratio:2/1.2;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:#0a0a0e;margin-top:12px;overflow:hidden;"></div>
+    </div>
+    <div class="glass" style="padding:24px;">
+      <div class="card-title">Trajectory Verdict</div>
+      <div id="trajectoryVerdict" style="font-size:14px;line-height:1.7;color:var(--text-secondary);margin-top:8px;">No trajectory data yet.</div>
+      <div style="margin-top:20px;">
+        <div class="card-title">Zone Probabilities</div>
+        <div style="margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span>Checkout</span><span id="checkoutProb">0%</span>
+          </div>
+          <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;">
+            <div id="checkoutBar" style="height:100%;width:0%;background:var(--green);transition:width .5s;border-radius:3px;"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+            <span>Exit</span><span id="exitProb">0%</span>
+          </div>
+          <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;">
+            <div id="exitBar" style="height:100%;width:0%;background:var(--red);transition:width .5s;border-radius:3px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ARCHITECTURE -->
 <section id="archSection">
   <div class="section-label fade-in">Under The Hood</div>
@@ -431,6 +516,8 @@
       document.getElementById('hudFrames').textContent = totalFrames;
       document.getElementById('mFrames').textContent = totalFrames;
       const isNormal = Math.random() > 0.08;
+      const px = Math.min(1, Math.max(0, 0.3 + (Math.random()-0.5)*0.4));
+      const py = Math.min(1, Math.max(0, 0.3 + (Math.random()-0.5)*0.4));
       const payload = {
         source_frame_index: totalFrames,
         timestamp_utc: new Date().toISOString(),
@@ -438,6 +525,11 @@
         item_visible: isNormal,
         hand_near_item: !isNormal && Math.random() > 0.3,
         motion_score: isNormal ? +(Math.random() * 0.25).toFixed(2) : +(0.4 + Math.random() * 0.5).toFixed(2),
+        person_id: 'person-live-01',
+        person_x: +px.toFixed(3),
+        person_y: +py.toFixed(3),
+        head_rotation_score: +(Math.random() * 0.4).toFixed(2),
+        linger_seconds: isNormal ? +(Math.random()*8).toFixed(1) : +(10+Math.random()*20).toFixed(1),
       };
       try {
         const res = await fetch('/vision/observations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -484,10 +576,12 @@
   // ── Data refresh ──
   async function refreshAll() {
     try {
-      const [metrics, incidents, events] = await Promise.all([
+      const [metrics, incidents, events, behaviors, zones] = await Promise.all([
         fetch('/metrics').then(r => r.json()),
         fetch('/incidents').then(r => r.json()),
         fetch('/vision/events').then(r => r.json()),
+        fetch('/behavior/history').then(r => r.json()),
+        fetch('/zones').then(r => r.json()),
       ]);
       document.getElementById('mTotal').textContent = metrics.total_incidents;
       document.getElementById('mEscalated').textContent = metrics.escalated_incidents;
@@ -509,12 +603,69 @@
             <td>${item.observed_sku}</td>
             <td>${item.confidence.toFixed(3)}</td>
             <td>${item.pos_match ? 'Yes' : 'No'}</td>
-            <td style="color:var(--text-secondary);font-size:13px;">${item.decision_reason}</td>
+            <td style="color:var(--text-secondary);font-size:13px;">${item.behavior_pattern || '-'}</td>
           `;
           rows.appendChild(tr);
         }
       }
+
+      // Reasoning chain
+      const chainBox = document.getElementById('reasoningChain');
+      const latest = [...incidents].reverse()[0];
+      if (latest && latest.reasoning_chain && latest.reasoning_chain.links) {
+        const colors = { observation: 'var(--accent)', behavior_analysis: 'var(--orange)', zone_analysis: 'var(--green)', pos_validation: '#a78bfa', confidence_assessment: 'var(--text-secondary)', verdict: 'var(--red)' };
+        chainBox.innerHTML = latest.reasoning_chain.links.map(l =>
+          `<div class="reasoning-step"><div class="step-label" style="color:${colors[l.step]||'#888'}">${l.step.replace('_',' ')}</div>${l.description}</div>`
+        ).join('') + `<div style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);font-size:14px;font-weight:600;">${latest.reasoning_chain.final_verdict} (${(latest.reasoning_chain.final_confidence*100).toFixed(1)}%)</div>`;
+      }
+
+      // Behavior timeline
+      const timeline = document.getElementById('behaviorTimeline');
+      const suspiciousBehaviors = ['item_concealed','looking_around','moved_to_exit'];
+      const warningBehaviors = ['lingering','item_pickup'];
+      timeline.innerHTML = behaviors.slice(-20).map(b => {
+        let cls = 'normal';
+        if (suspiciousBehaviors.includes(b.behavior)) cls = 'suspicious';
+        else if (warningBehaviors.includes(b.behavior)) cls = 'warning';
+        return `<div class="behavior-chip ${cls}">${b.behavior.replace('_',' ')}</div>`;
+      }).join('');
+
+      // Zone map
+      renderZoneMap(zones);
+
+      // Trajectory verdict
+      if (latest && latest.zone_heading) {
+        const cp = latest.zone_exit_probability != null ? (1 - latest.zone_exit_probability) : 0.5;
+        const ep = latest.zone_exit_probability || 0.5;
+        document.getElementById('trajectoryVerdict').innerHTML =
+          `<div style="font-size:15px;font-weight:600;margin-bottom:8px;color:${latest.zone_heading === 'exit' ? 'var(--red)' : 'var(--green)'}">Heading: ${latest.zone_heading.toUpperCase()}</div>` +
+          `<div>${latest.reasoning_narrative || 'No narrative available.'}</div>`;
+        document.getElementById('checkoutProb').textContent = (cp*100).toFixed(0)+'%';
+        document.getElementById('exitProb').textContent = (ep*100).toFixed(0)+'%';
+        document.getElementById('checkoutBar').style.width = (cp*100)+'%';
+        document.getElementById('exitBar').style.width = (ep*100)+'%';
+      }
     } catch {}
+  }
+
+  function renderZoneMap(zones) {
+    const map = document.getElementById('zoneMap');
+    if (map.children.length > 0 && map.dataset.rendered) return;
+    map.dataset.rendered = '1';
+    const colors = { entrance: '#2997ff', aisle: '#555', shelf: '#ff9f0a', checkout: '#30d158', exit: '#ff453a', unknown: '#333' };
+    for (const z of zones) {
+      const div = document.createElement('div');
+      div.className = 'zone-block';
+      div.style.left = (z.x_min*100)+'%';
+      div.style.top = (z.y_min*100)+'%';
+      div.style.width = ((z.x_max-z.x_min)*100)+'%';
+      div.style.height = ((z.y_max-z.y_min)*100)+'%';
+      div.style.borderColor = colors[z.zone_type]||'#444';
+      div.style.color = colors[z.zone_type]||'#888';
+      div.style.background = (colors[z.zone_type]||'#222')+'15';
+      div.textContent = z.label;
+      map.appendChild(div);
+    }
   }
 
   // ── Demo ──

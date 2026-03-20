@@ -89,7 +89,7 @@ def test_demo_scenario_creates_dashboard_incident() -> None:
     client = TestClient(agent_app)
     demo_response = client.post("/demo/run")
     assert demo_response.status_code == 200
-    assert demo_response.json()["observations_processed"] == 5
+    assert demo_response.json()["observations_processed"] == 11
 
     metrics_response = client.get("/metrics")
     assert metrics_response.status_code == 200
