@@ -12,15 +12,15 @@
 ![MLOps](https://img.shields.io/badge/MLOps-Agentic%20Pipeline-6D28D9)
 ![Status](https://img.shields.io/badge/Status-Active%20Build-059669)
 
-## Why this stands out on a resume
+## Business and engineering value
 
-Most CV demos stop at detection. This project demonstrates **decision intelligence**:
-- Vision signal -> behavioral anomaly candidate
-- Business verification -> POS cross-check
-- Autonomous action -> evidence clipping + alerting
-- Operational quality -> structured logging, testing, and reproducible deployment
+This project models a practical retail operations workflow instead of a standalone ML demo:
+- Detects suspicious shelf behavior and converts it into structured events
+- Validates events against POS scans before escalation to reduce false alarms
+- Produces incident artifacts (timeline, evidence reference, alert payload) for auditability
+- Exposes service APIs and a live dashboard for operations visibility
 
-It showcases the exact blend hiring teams look for in ML engineers: **model-aware systems design + backend reliability + product thinking**.
+The architecture emphasizes production concerns: deterministic workflows, test coverage, explicit service boundaries, and reproducible local deployment.
 
 ## System architecture
 
@@ -135,8 +135,9 @@ docker compose up --build
 - Implemented in-memory frame buffer and baseline disappearance detector
 - Added tests for both event and no-event behavior patterns
 
-## Recruiter-friendly impact bullets
+## Key implementation highlights
 
-- Built an **agentic CV + transaction intelligence** pipeline that escalates only business-relevant anomalies.
-- Designed a **multi-signal decision engine** to reduce false positives using POS cross-validation.
-- Implemented **automated incident evidence capture** and alert delivery for near real-time operational response.
+- Multi-signal decisioning pipeline combining vision events and POS transaction checks
+- Incident lifecycle management with escalation and resolution states
+- Evidence packaging and alert dispatch simulation for downstream operations tooling
+- Operator-facing dashboard for real-time status, metrics, and incident review
