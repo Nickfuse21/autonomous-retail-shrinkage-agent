@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Retail Loss Prevention Intelligence Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #000000;
@@ -23,12 +23,15 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
       position: relative;
+    }
+    h1, h2, h3, .section-title, nav .logo {
+      font-family: 'Sora', 'Inter', sans-serif;
     }
     .interactive-bg {
       position: fixed;
@@ -83,6 +86,20 @@
       will-change: transform;
       transition: opacity .3s ease;
     }
+    .scroll-light {
+      position: absolute;
+      width: min(56vw, 820px);
+      height: min(56vw, 820px);
+      left: 50%;
+      top: 10%;
+      transform: translate(-50%, 0);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(41,151,255,0.24), rgba(41,151,255,0.08) 35%, rgba(41,151,255,0) 72%);
+      filter: blur(18px);
+      opacity: 0.3;
+      will-change: transform, opacity;
+      transition: opacity .25s ease;
+    }
     #scrollProgress {
       position: fixed; top: 0; left: 0; height: 3px; width: 0%;
       background: linear-gradient(90deg, #2997ff, #30d158);
@@ -119,14 +136,14 @@
       left: 50%;
       transform: translateX(-50%);
       z-index: 95;
-      width: min(1020px, calc(100vw - 36px));
+      width: min(1240px, calc(100vw - 36px));
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px;
       background: rgba(2, 6, 23, 0.62);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(8, minmax(0, 1fr));
       gap: 10px;
       padding: 10px 14px;
     }
@@ -173,12 +190,101 @@
       width: 78px;
       accent-color: #2997ff;
     }
+    .quick-btn {
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      color: #fff;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      transition: background .2s, border-color .2s;
+    }
+    .quick-btn:hover { background: rgba(41,151,255,0.16); border-color: rgba(41,151,255,0.45); }
+    .control-rail {
+      position: fixed;
+      right: 16px;
+      top: 144px;
+      width: 220px;
+      z-index: 98;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      background: rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform .25s ease, opacity .25s ease;
+    }
+    .rail-hd {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+    .rail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      border-radius: 9px;
+      padding: 8px 10px;
+    }
+    .switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      display: inline-block;
+    }
+    .switch input { display: none; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.18);
+      border-radius: 999px;
+      transition: .2s;
+      cursor: pointer;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: #fff;
+      transition: .2s;
+    }
+    .switch input:checked + .slider {
+      background: rgba(41,151,255,0.7);
+    }
+    .switch input:checked + .slider::before {
+      transform: translateX(16px);
+    }
+    body.ui-motion-off .blob,
+    body.ui-motion-off .mouse-aura,
+    body.ui-motion-off .scroll-light,
+    body.ui-motion-off .hero::after {
+      animation: none !important;
+      transition: none !important;
+    }
+    body.ui-dense .glass { padding: 16px; border-radius: 14px; }
+    body.ui-dense .feed-layout, body.ui-dense .metrics-grid { gap: 14px; }
 
     /* ── HERO ── */
     .hero {
       min-height: 100vh; display: flex; flex-direction: column;
       align-items: center; justify-content: center; text-align: center;
-      padding: 120px 24px 80px;
+      padding: 168px 24px 80px;
       background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(41,151,255,0.15), transparent),
                   radial-gradient(ellipse 60% 40% at 80% 100%, rgba(48,209,88,0.08), transparent);
       position: relative;
@@ -540,6 +646,7 @@
       .metrics-grid { grid-template-columns: repeat(2, 1fr); }
       .status-bar { grid-template-columns: 1fr 1fr; top: 56px; }
       .incident-panel { top: 98px; right: 10px; left: 10px; width: auto; }
+      .control-rail { display: none; }
     }
     @keyframes heroAura {
       0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(0.95); }
@@ -579,6 +686,7 @@
   <div class="blob blob-b"></div>
   <div class="blob blob-c"></div>
   <div class="mouse-aura" id="mouseAura"></div>
+  <div class="scroll-light" id="scrollLight"></div>
 </div>
 <div id="scrollProgress"></div>
 
@@ -602,6 +710,8 @@
   <div class="status-cell"><span>Last Alert</span><span class="v" id="sbLastAlert">--</span></div>
   <div class="status-cell"><span>Open Incidents</span><span class="v" id="sbOpenIncidents">0</span></div>
   <div class="status-cell"><span>Frames/min</span><span class="v" id="sbFpm">0</span></div>
+  <div class="status-cell"><span>Detector</span><span class="v" id="sbDetectorModel">Pretrained</span></div>
+  <div class="status-cell"><span>Copilot</span><span class="v" id="sbCopilotMode">Live</span></div>
   <div class="status-cell">
     <span>Sound</span>
     <span class="v" style="display:flex;align-items:center;gap:6px;">
@@ -609,7 +719,41 @@
       <input id="soundVolume" class="sound-range" type="range" min="0" max="100" value="32" title="Sound volume">
     </span>
   </div>
+  <div class="status-cell">
+    <span>Quick</span>
+    <span class="v" style="display:flex;align-items:center;gap:6px;">
+      <button class="quick-btn" id="quickRunDemo">Demo</button>
+      <button class="quick-btn" id="quickRefresh">Refresh</button>
+      <button class="quick-btn" id="quickExport">CSV</button>
+    </span>
+  </div>
 </div>
+<aside class="control-rail" id="controlRail">
+  <div class="rail-hd">Interactive Controls</div>
+  <div class="rail-row" style="display:block;">
+    <span style="display:block;margin-bottom:6px;">Workspace Mode</span>
+    <select id="workspaceMode" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:var(--text);font-size:12px;">
+      <option value="analyst">Analyst</option>
+      <option value="manager">Manager</option>
+    </select>
+  </div>
+  <div class="rail-row">
+    <span>Ambient Motion</span>
+    <label class="switch"><input type="checkbox" id="toggleMotion" checked><span class="slider"></span></label>
+  </div>
+  <div class="rail-row">
+    <span>Card Tilt</span>
+    <label class="switch"><input type="checkbox" id="toggleTilt" checked><span class="slider"></span></label>
+  </div>
+  <div class="rail-row">
+    <span>Dense Overlay</span>
+    <label class="switch"><input type="checkbox" id="toggleDense"><span class="slider"></span></label>
+  </div>
+  <div class="rail-row">
+    <span>Copilot Auto</span>
+    <label class="switch"><input type="checkbox" id="toggleCopilotAuto" checked><span class="slider"></span></label>
+  </div>
+</aside>
 
 <!-- HERO -->
 <div class="hero">
@@ -727,6 +871,26 @@
     <div class="glass metric-card">
       <div class="number" id="mFrames">0</div>
       <div class="desc">Frames Processed</div>
+    </div>
+  </div>
+</section>
+
+<section id="operationsSection">
+  <div class="section-label fade-in">Enterprise Workflow</div>
+  <div class="section-title fade-in">Open investigations and audit trail.</div>
+  <div class="section-sub fade-in">Operations-first workspace with queue, evidence package, and timeline for defensible review decisions.</div>
+  <div style="margin-top:24px;display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;" class="fade-in">
+    <div class="glass" style="padding:18px;">
+      <div class="card-title">Open Investigations</div>
+      <div id="openInvestigationsQueue" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text-secondary);"></div>
+    </div>
+    <div class="glass" style="padding:18px;">
+      <div class="card-title">Evidence and Reasoning</div>
+      <div id="evidencePanel" style="margin-top:10px;font-size:13px;line-height:1.7;color:var(--text-secondary);">Select an incident to inspect evidence package.</div>
+    </div>
+    <div class="glass" style="padding:18px;">
+      <div class="card-title">Audit Timeline</div>
+      <div id="auditTimelinePanel" style="margin-top:10px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text-secondary);">No timeline events yet.</div>
     </div>
   </div>
 </section>
@@ -868,6 +1032,10 @@
 <!-- FOOTER -->
 <footer>
   <p>Autonomous Retail Loss Prevention Intelligence Platform &mdash; Built with FastAPI, Python, and production engineering principles.</p>
+  <p style="margin-top:10px;color:#8f97a7;">
+    Dev Nikhil Pratap &middot; Work by me &middot;
+    <a href="https://github.com/Nickfuse21" target="_blank" rel="noopener noreferrer" style="color:#8cc8ff;text-decoration:none;">github.com/Nickfuse21</a>
+  </p>
 </footer>
 
 <aside class="incident-panel" id="incidentPanel" aria-live="polite">
@@ -892,8 +1060,16 @@
   let detectorLoopHandle = null;
   let detectorBusy = false;
   let detectorModelVariant = localStorage.getItem('detectorModelVariant') || 'pretrained';
+  let workspaceMode = localStorage.getItem('workspaceMode') || 'analyst';
+  let apiToken = localStorage.getItem('apiToken') || '';
   let copilotBusy = false;
   let copilotLastRefreshAt = 0;
+  const uiState = {
+    motion: localStorage.getItem('uiMotion') !== '0',
+    tilt: localStorage.getItem('uiTilt') !== '0',
+    dense: localStorage.getItem('uiDense') === '1',
+    copilotAuto: localStorage.getItem('uiCopilotAuto') !== '0',
+  };
   const detectorProfiles = {
     speed: { intervalMs: 500, confThreshold: 0.42, maxDetections: 10, maxInputWidth: 512, jpegQuality: 0.6 },
     balanced: { intervalMs: 800, confThreshold: 0.35, maxDetections: 15, maxInputWidth: 768, jpegQuality: 0.72 },
@@ -906,6 +1082,18 @@
     ctx: null,
     master: null,
   };
+
+  function authHeaders(extra = {}) {
+    const headers = { ...extra };
+    if (apiToken) headers['X-API-Token'] = apiToken;
+    headers['X-Actor-Role'] = workspaceMode === 'manager' ? 'manager' : 'analyst';
+    return headers;
+  }
+
+  async function apiFetch(url, options = {}) {
+    const headers = authHeaders(options.headers || {});
+    return fetch(url, { ...options, headers });
+  }
 
   // ── Intersection Observer for fade-in ──
   const obs = new IntersectionObserver((entries) => {
@@ -959,7 +1147,7 @@
         linger_seconds: isNormal ? +(Math.random()*8).toFixed(1) : +(10+Math.random()*20).toFixed(1),
       };
       try {
-        const res = await fetch('/vision/observations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await apiFetch('/vision/observations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (data.event) {
           flashOverlay('alert');
@@ -1010,6 +1198,11 @@
     if (msgEl) msgEl.textContent = msg;
     if (devEl && device != null) devEl.textContent = String(device);
     if (countEl && Number.isFinite(count)) countEl.textContent = String(count);
+    const barMode = document.getElementById('sbDetectorModel');
+    if (barMode) {
+      const modelName = detectorModelVariant === 'custom' ? 'Custom' : 'Pretrained';
+      barMode.textContent = `${modelName} / ${device || 'N/A'}`;
+    }
   }
 
   function startDetectionLoop() {
@@ -1028,7 +1221,7 @@
       const capture = captureCurrentFrameBase64(video);
       if (!capture) return;
       const profile = detectorProfiles[detectorProfileKey] || detectorProfiles.balanced;
-      const res = await fetch('/vision/detect-frame', {
+      const res = await apiFetch('/vision/detect-frame', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1119,11 +1312,11 @@
       if (incidentFilters.review_status) query.set('review_status', incidentFilters.review_status);
       if (incidentFilters.min_confidence !== "") query.set('min_confidence', incidentFilters.min_confidence);
       const [metrics, incidents, events, behaviors, zones] = await Promise.all([
-        fetch('/metrics').then(r => r.json()),
-        fetch('/incidents?' + query.toString()).then(r => r.json()),
-        fetch('/vision/events').then(r => r.json()),
-        fetch('/behavior/history').then(r => r.json()),
-        fetch('/zones').then(r => r.json()),
+        apiFetch('/metrics').then(r => r.json()),
+        apiFetch('/incidents?' + query.toString()).then(r => r.json()),
+        apiFetch('/vision/events').then(r => r.json()),
+        apiFetch('/behavior/history').then(r => r.json()),
+        apiFetch('/zones').then(r => r.json()),
       ]);
       animateMetric('mTotal', metrics.total_incidents);
       animateMetric('mEscalated', metrics.escalated_incidents);
@@ -1180,7 +1373,7 @@
           btn.addEventListener('click', async () => {
             const [incidentId, action] = btn.getAttribute('data-review').split(':');
             const notes = window.prompt('Optional review notes:') || null;
-            await fetch(`/incidents/${incidentId}/review`, {
+            await apiFetch(`/incidents/${incidentId}/review`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action, notes }),
@@ -1215,6 +1408,7 @@
 
       // Zone map
       renderZoneMap(zones);
+      renderOperationsWorkspace(incidents);
 
       // Trajectory verdict
       if (latest && latest.zone_heading) {
@@ -1228,7 +1422,7 @@
         document.getElementById('checkoutBar').style.width = (cp*100)+'%';
         document.getElementById('exitBar').style.width = (ep*100)+'%';
       }
-      if (Date.now() - copilotLastRefreshAt > 7000) {
+      if (uiState.copilotAuto && Date.now() - copilotLastRefreshAt > 7000) {
         refreshCopilotBrief();
       }
     } catch {}
@@ -1238,13 +1432,15 @@
     if (copilotBusy) return;
     copilotBusy = true;
     try {
-      const [status, brief] = await Promise.all([
-        fetch('/copilot/status').then(r => r.json()),
-        fetch('/copilot/brief').then(r => r.json()),
+        const [status, brief] = await Promise.all([
+        apiFetch('/copilot/status').then(r => r.json()),
+        apiFetch('/copilot/brief').then(r => r.json()),
       ]);
       copilotLastRefreshAt = Date.now();
       const modeEl = document.getElementById('copilotMode');
       if (modeEl) modeEl.textContent = `${status.mode || 'unknown'} (${status.model || 'n/a'})`;
+      const sbCopilot = document.getElementById('sbCopilotMode');
+      if (sbCopilot) sbCopilot.textContent = status.mode || 'unknown';
       const risk = (brief.risk_level || 'medium').toLowerCase();
       const riskEl = document.getElementById('copilotRisk');
       if (riskEl) {
@@ -1438,6 +1634,42 @@
     playUiTone('panelOpen');
   }
 
+  function renderOperationsWorkspace(incidents) {
+    const queue = document.getElementById('openInvestigationsQueue');
+    const evidence = document.getElementById('evidencePanel');
+    const timeline = document.getElementById('auditTimelinePanel');
+    if (!queue || !evidence || !timeline) return;
+    const open = [...incidents].filter(i => i.review_status === 'unreviewed').reverse().slice(0, 8);
+    if (!open.length) {
+      queue.innerHTML = '<div>No open investigations.</div>';
+    } else {
+      queue.innerHTML = open.map(i => `<button data-open-inc="${i.incident_id}" class="btn btn-outline" style="text-align:left;padding:8px 10px;">${i.incident_id}<br><span style="font-size:11px;color:var(--text-secondary);">${i.observed_sku} · ${(i.confidence*100).toFixed(0)}%</span></button>`).join('');
+    }
+    queue.querySelectorAll('[data-open-inc]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-open-inc');
+        const selected = incidents.find(i => i.incident_id === id);
+        if (selected) openIncidentPanel(selected);
+      });
+    });
+    const latest = [...incidents].reverse()[0];
+    if (!latest) {
+      evidence.textContent = 'No incidents yet.';
+      timeline.textContent = 'No timeline events yet.';
+      return;
+    }
+    evidence.innerHTML = `
+      <div><strong>ID:</strong> ${latest.incident_id}</div>
+      <div><strong>Clip:</strong> ${latest.clip_path || '-'}</div>
+      <div><strong>POS:</strong> ${latest.pos_match ? 'Matched transaction' : 'Mismatch'}</div>
+      <div><strong>Reasoning:</strong> ${latest.reasoning_narrative || '-'}</div>
+    `;
+    const events = Array.isArray(latest.audit_timeline) ? latest.audit_timeline : [];
+    timeline.innerHTML = events.length
+      ? events.map(e => `<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.03);"><div style="font-weight:600;color:#fff;">${e.event_type}</div><div>${(e.actor||'system')} · ${(e.timestamp_utc||'').replace('T',' ').slice(0,19)}</div></div>`).join('')
+      : 'No timeline events yet.';
+  }
+
   function initKeyboardShortcuts() {
     document.addEventListener('keydown', async (ev) => {
       if (ev.target && ["INPUT", "TEXTAREA", "SELECT"].includes(ev.target.tagName)) return;
@@ -1505,6 +1737,62 @@
       detectorModelVariant = select.value;
       localStorage.setItem('detectorModelVariant', detectorModelVariant);
       addAction(`Detector model switched to ${detectorModelVariant === 'pretrained' ? 'YOLO PRETRAINED' : 'CUSTOM TRAINED'}.`, 'accent');
+      const barMode = document.getElementById('sbDetectorModel');
+      if (barMode) barMode.textContent = detectorModelVariant === 'custom' ? 'Custom' : 'Pretrained';
+    });
+  }
+
+  function initCommandBarActions() {
+    document.getElementById('quickRunDemo')?.addEventListener('click', runDemo);
+    document.getElementById('quickRefresh')?.addEventListener('click', async () => {
+      playUiTone('refresh');
+      await refreshAll();
+    });
+    document.getElementById('quickExport')?.addEventListener('click', () => {
+      document.getElementById('exportCsv')?.click();
+    });
+  }
+
+  function applyUiState() {
+    document.body.classList.toggle('ui-motion-off', !uiState.motion);
+    document.body.classList.toggle('ui-dense', uiState.dense);
+    const motionT = document.getElementById('toggleMotion');
+    const tiltT = document.getElementById('toggleTilt');
+    const denseT = document.getElementById('toggleDense');
+    const copilotT = document.getElementById('toggleCopilotAuto');
+    if (motionT) motionT.checked = uiState.motion;
+    if (tiltT) tiltT.checked = uiState.tilt;
+    if (denseT) denseT.checked = uiState.dense;
+    if (copilotT) copilotT.checked = uiState.copilotAuto;
+  }
+
+  function initRightRailControls() {
+    applyUiState();
+    const modeEl = document.getElementById('workspaceMode');
+    if (modeEl) {
+      modeEl.value = workspaceMode;
+      modeEl.addEventListener('change', (ev) => {
+        workspaceMode = ev.target.value;
+        localStorage.setItem('workspaceMode', workspaceMode);
+      });
+    }
+    document.getElementById('toggleMotion')?.addEventListener('change', (ev) => {
+      uiState.motion = !!ev.target.checked;
+      localStorage.setItem('uiMotion', uiState.motion ? '1' : '0');
+      applyUiState();
+    });
+    document.getElementById('toggleTilt')?.addEventListener('change', (ev) => {
+      uiState.tilt = !!ev.target.checked;
+      localStorage.setItem('uiTilt', uiState.tilt ? '1' : '0');
+    });
+    document.getElementById('toggleDense')?.addEventListener('change', (ev) => {
+      uiState.dense = !!ev.target.checked;
+      localStorage.setItem('uiDense', uiState.dense ? '1' : '0');
+      applyUiState();
+    });
+    document.getElementById('toggleCopilotAuto')?.addEventListener('change', (ev) => {
+      uiState.copilotAuto = !!ev.target.checked;
+      localStorage.setItem('uiCopilotAuto', uiState.copilotAuto ? '1' : '0');
     });
   }
 
@@ -1519,7 +1807,7 @@
       askBtn.disabled = true;
       ansEl.textContent = 'Thinking...';
       try {
-        const res = await fetch('/copilot/chat', {
+        const res = await apiFetch('/copilot/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: q }),
@@ -1544,6 +1832,7 @@
       const total = document.documentElement.scrollHeight - window.innerHeight;
       const ratio = total > 0 ? (window.scrollY / total) * 100 : 0;
       progress.style.width = ratio + '%';
+      updateScrollLight(ratio);
     }, { passive: true });
 
     // Active nav link based on visible section
@@ -1565,6 +1854,7 @@
     const tiltTargets = document.querySelectorAll('.glass, .arch-node');
     tiltTargets.forEach((el) => {
       el.addEventListener('mousemove', (ev) => {
+        if (!uiState.tilt) return;
         const r = el.getBoundingClientRect();
         const px = (ev.clientX - r.left) / r.width;
         const py = (ev.clientY - r.top) / r.height;
@@ -1590,7 +1880,19 @@
       });
     });
     initMouseAura();
+    updateScrollLight(0);
 
+  }
+
+  function updateScrollLight(ratioPercent) {
+    const light = document.getElementById('scrollLight');
+    if (!light || !uiState.motion) return;
+    const ratio = Math.max(0, Math.min(1, ratioPercent / 100));
+    const y = ratio * window.innerHeight * 0.88;
+    const rot = -10 + ratio * 20;
+    const op = 0.22 + ratio * 0.35;
+    light.style.opacity = String(op);
+    light.style.transform = `translate(-50%, ${y.toFixed(1)}px) rotate(${rot.toFixed(2)}deg)`;
   }
 
   function initMouseAura() {
@@ -1610,6 +1912,7 @@
       state.raf = requestAnimationFrame(tick);
     };
     document.addEventListener('mousemove', (ev) => {
+      if (!uiState.motion) return;
       state.tx = ev.clientX;
       state.ty = ev.clientY;
       aura.style.opacity = '0.55';
@@ -1633,7 +1936,7 @@
   async function runDemo() {
     playUiTone('demoStart');
     addAction('Demo scenario initiated. Sending observation sequence...', 'accent');
-    await fetch('/demo/run', { method: 'POST' });
+    await apiFetch('/demo/run', { method: 'POST' });
     flashOverlay('alert');
     addLogLine('DEMO: Theft scenario simulation triggered', true);
     setTimeout(() => addAction('Demo complete. Check incident feed below.', 'green'), 1500);
@@ -1656,6 +1959,7 @@
     if (incidentFilters.status) q.set('status', incidentFilters.status);
     if (incidentFilters.sku) q.set('sku', incidentFilters.sku);
     if (incidentFilters.review_status) q.set('review_status', incidentFilters.review_status);
+    if (apiToken) q.set('api_token', apiToken);
     playUiTone('refresh');
     window.open('/incidents/export.csv?' + q.toString(), '_blank');
   });
@@ -1667,6 +1971,8 @@
   initSoundEngine();
   initDetectorProfileControls();
   initDetectorModelControls();
+  initCommandBarActions();
+  initRightRailControls();
   initCopilotControls();
   initMicroInteractions();
   initKeyboardShortcuts();

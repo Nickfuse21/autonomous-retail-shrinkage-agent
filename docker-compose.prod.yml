@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: retail-guard-agent:latest
+    environment:
+      APP_ENV: production
+      AGENT_PORT: 8080
+      API_TOKEN: ${API_TOKEN}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      POS_API_URL: ${POS_API_URL:-http://mock-pos:8081}
+      DETECTOR_DEVICE: ${DETECTOR_DEVICE:-cpu}
+      COPILOT_PROVIDER: ${COPILOT_PROVIDER:-local}
+      INCIDENT_DB_PATH: /app/data/incidents.db
+      REQUIRE_API_TOKEN_IN_NON_DEV: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - incident_data:/app/data
+    depends_on:
+      - mock-pos
+
+  mock-pos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: retail-guard-pos:latest
+    command: uvicorn src.api.mock_pos_api:app --host 0.0.0.0 --port 8081
+    environment:
+      APP_ENV: production
+    ports:
+      - "8081:8081"
+
+volumes:
+  incident_data:

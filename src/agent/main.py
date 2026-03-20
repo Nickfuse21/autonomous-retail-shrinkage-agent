@@ -1,11 +1,17 @@
 import base64
 import binascii
+import json
+import logging
+import os
+import time
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -16,8 +22,46 @@ from src.vision.detection_service import DetectionService
 from src.vision.pipeline import VisionPipeline
 from src.vision.schemas import ObservationIn, ObservationResponse, SuspiciousEventOut
 
-app = FastAPI(title="Retail Loss Prevention Intelligence Platform", version="0.4.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "")
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _parse_origins(raw: str) -> list[str]:
+    parts = [x.strip() for x in raw.split(",") if x.strip()]
+    return parts if parts else ["http://localhost:8080", "http://127.0.0.1:8080"]
+
+
+APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
+API_TOKEN = os.getenv("API_TOKEN", "").strip()
+CORS_ALLOWED_ORIGINS = _parse_origins(
+    os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:8080,http://127.0.0.1:8080")
+)
+MAX_IMAGE_BASE64_CHARS = _env_int("MAX_IMAGE_BASE64_CHARS", 4_000_000)
+RATE_LIMIT_WINDOW_SECONDS = max(10, _env_int("RATE_LIMIT_WINDOW_SECONDS", 60))
+RATE_LIMIT_DETECT_PER_WINDOW = max(5, _env_int("RATE_LIMIT_DETECT_PER_WINDOW", 45))
+RATE_LIMIT_CHAT_PER_WINDOW = max(3, _env_int("RATE_LIMIT_CHAT_PER_WINDOW", 20))
+REQUIRE_API_TOKEN_IN_NON_DEV = os.getenv("REQUIRE_API_TOKEN_IN_NON_DEV", "true").strip().lower() == "true"
+AUTHZ_REVIEW_ROLES = {x.strip() for x in os.getenv("AUTHZ_REVIEW_ROLES", "manager,admin").split(",") if x.strip()}
+AUTHZ_EXPORT_ROLES = {x.strip() for x in os.getenv("AUTHZ_EXPORT_ROLES", "manager,admin,auditor").split(",") if x.strip()}
+_rate_buckets: dict[tuple[str, str], deque[float]] = defaultdict(deque)
+_endpoint_stats: dict[str, dict[str, float]] = defaultdict(lambda: {"count": 0, "total_ms": 0, "max_ms": 0})
+_logger = logging.getLogger("agent.api")
+if not _logger.handlers:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+app = FastAPI(title="Retail Loss Prevention Intelligence Platform", version="0.5.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 pipeline = VisionPipeline()
 incident_manager = IncidentManager()
 detection_service = DetectionService()
@@ -25,6 +69,37 @@ copilot_service = AgenticCopilotService()
 frame_counter: dict[str, int] = {"total": 0}
 static_dir = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+if APP_ENV != "development" and REQUIRE_API_TOKEN_IN_NON_DEV and not API_TOKEN:
+    raise RuntimeError("API_TOKEN is required in non-development environments")
+
+
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next) -> Response:
+    correlation_id = request.headers.get("X-Correlation-ID") or str(uuid4())
+    started = time.perf_counter()
+    request.state.correlation_id = correlation_id
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - started) * 1000.0
+    key = f"{request.method} {request.url.path}"
+    stat = _endpoint_stats[key]
+    stat["count"] += 1
+    stat["total_ms"] += elapsed_ms
+    stat["max_ms"] = max(stat["max_ms"], elapsed_ms)
+    response.headers["X-Correlation-ID"] = correlation_id
+    _logger.info(
+        json.dumps(
+            {
+                "msg": "request_complete",
+                "correlation_id": correlation_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": round(elapsed_ms, 2),
+            }
+        )
+    )
+    return response
 
 
 @app.get("/")
@@ -34,7 +109,32 @@ def dashboard() -> FileResponse:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "agent", "ui": "enabled"}
+    return {"status": "ok", "service": "agent", "ui": "enabled", "app_env": APP_ENV}
+
+
+def _require_api_token(x_api_token: str | None) -> None:
+    if API_TOKEN and x_api_token != API_TOKEN:
+        raise HTTPException(status_code=401, detail="invalid_api_token")
+
+
+def _require_authorized_role(x_actor_role: str | None, allowed_roles: set[str]) -> None:
+    role = (x_actor_role or "").strip().lower()
+    if APP_ENV == "development":
+        return
+    if role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="insufficient_role")
+
+
+def _enforce_rate_limit(scope: str, request: Request, max_requests: int) -> None:
+    client_id = request.client.host if request.client else "unknown"
+    key = (scope, client_id)
+    now = time.time()
+    bucket = _rate_buckets[key]
+    while bucket and (now - bucket[0]) > RATE_LIMIT_WINDOW_SECONDS:
+        bucket.popleft()
+    if len(bucket) >= max_requests:
+        raise HTTPException(status_code=429, detail="rate_limit_exceeded")
+    bucket.append(now)
 
 
 def _serialize_event(event: SuspiciousEvent | None) -> SuspiciousEventOut | None:
@@ -80,6 +180,9 @@ def list_incidents(
     min_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     max_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
     review_status: str | None = Query(default=None),
+    store_id: str | None = Query(default=None),
+    camera_id: str | None = Query(default=None),
+    zone_heading: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[dict[str, object]]:
     return [
@@ -91,6 +194,9 @@ def list_incidents(
             min_confidence=min_confidence,
             max_confidence=max_confidence,
             review_status=review_status,
+            store_id=store_id,
+            camera_id=camera_id,
+            zone_heading=zone_heading,
         )
     ]
 
@@ -112,7 +218,14 @@ class CopilotQuestionIn(BaseModel):
 
 
 @app.post("/incidents/{incident_id}/review")
-def review_incident(incident_id: str, payload: ReviewActionIn) -> dict[str, object]:
+def review_incident(
+    incident_id: str,
+    payload: ReviewActionIn,
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+    x_actor_role: str | None = Header(default=None, alias="X-Actor-Role"),
+) -> dict[str, object]:
+    _require_api_token(x_api_token)
+    _require_authorized_role(x_actor_role, AUTHZ_REVIEW_ROLES)
     updated = incident_manager.update_review(
         incident_id=incident_id,
         action=payload.action,
@@ -124,7 +237,15 @@ def review_incident(incident_id: str, payload: ReviewActionIn) -> dict[str, obje
 
 
 @app.post("/vision/detect-frame")
-def detect_frame(payload: FrameDetectIn) -> dict[str, object]:
+def detect_frame(
+    payload: FrameDetectIn,
+    request: Request,
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+) -> dict[str, object]:
+    _require_api_token(x_api_token)
+    _enforce_rate_limit("detect_frame", request, RATE_LIMIT_DETECT_PER_WINDOW)
+    if len(payload.image_base64) > MAX_IMAGE_BASE64_CHARS:
+        raise HTTPException(status_code=413, detail="image_payload_too_large")
     try:
         image_bytes = base64.b64decode(payload.image_base64, validate=True)
     except (binascii.Error, ValueError):
@@ -181,7 +302,13 @@ def copilot_brief() -> dict[str, object]:
 
 
 @app.post("/copilot/chat")
-def copilot_chat(payload: CopilotQuestionIn) -> dict[str, object]:
+def copilot_chat(
+    payload: CopilotQuestionIn,
+    request: Request,
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+) -> dict[str, object]:
+    _require_api_token(x_api_token)
+    _enforce_rate_limit("copilot_chat", request, RATE_LIMIT_CHAT_PER_WINDOW)
     result = copilot_service.answer_question(payload.question, _copilot_context())
     return {
         "answer": result.narrative,
@@ -197,7 +324,12 @@ def export_incidents_csv(
     status: str | None = Query(default=None),
     sku: str | None = Query(default=None),
     review_status: str | None = Query(default=None),
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+    api_token: str | None = Query(default=None),
+    x_actor_role: str | None = Header(default=None, alias="X-Actor-Role"),
 ) -> PlainTextResponse:
+    _require_api_token(x_api_token or api_token)
+    _require_authorized_role(x_actor_role, AUTHZ_EXPORT_ROLES)
     csv_text = incident_manager.export_incidents_csv(
         status=status,
         sku=sku,
@@ -210,11 +342,57 @@ def export_incidents_csv(
     )
 
 
+@app.get("/incidents/{incident_id}/evidence")
+def export_incident_evidence(
+    incident_id: str,
+    x_api_token: str | None = Header(default=None, alias="X-API-Token"),
+    api_token: str | None = Query(default=None),
+    x_actor_role: str | None = Header(default=None, alias="X-Actor-Role"),
+) -> JSONResponse:
+    _require_api_token(x_api_token or api_token)
+    _require_authorized_role(x_actor_role, AUTHZ_EXPORT_ROLES)
+    bundle = incident_manager.export_incident_evidence_bundle(incident_id)
+    if bundle is None:
+        raise HTTPException(status_code=404, detail="incident_not_found")
+    return JSONResponse(content=json.loads(bundle))
+
+
 @app.get("/metrics")
 def metrics() -> dict[str, int]:
     base = incident_manager.metrics()
     base["frames_processed"] = frame_counter["total"]
     return base
+
+
+@app.get("/metrics/extended")
+def metrics_extended() -> dict[str, object]:
+    endpoint_latency: dict[str, dict[str, float]] = {}
+    for key, stat in _endpoint_stats.items():
+        avg = (stat["total_ms"] / stat["count"]) if stat["count"] else 0.0
+        endpoint_latency[key] = {
+            "count": stat["count"],
+            "avg_ms": round(avg, 2),
+            "max_ms": round(stat["max_ms"], 2),
+        }
+    return {
+        "app_env": APP_ENV,
+        "api_token_configured": bool(API_TOKEN),
+        "rate_limit_window_seconds": RATE_LIMIT_WINDOW_SECONDS,
+        "endpoint_latency": endpoint_latency,
+    }
+
+
+@app.get("/health/dependencies")
+def health_dependencies() -> dict[str, object]:
+    copilot_status = copilot_service.status()
+    return {
+        "status": "ok",
+        "dependencies": {
+            "incident_repository": "ok",
+            "copilot": copilot_status,
+            "detector": detection_service.status(),
+        },
+    }
 
 
 @app.get("/zones")
@@ -248,9 +426,10 @@ def behavior_history() -> list[dict[str, object]]:
 
 
 @app.post("/demo/run")
-def run_demo_scenario() -> dict[str, object]:
+def run_demo_scenario(x_api_token: str | None = Header(default=None, alias="X-API-Token")) -> dict[str, object]:
     """Simulates a realistic multi-stage theft scenario with behavioral
     progression through store zones, triggering the full reasoning pipeline."""
+    _require_api_token(x_api_token)
     now = datetime.now(timezone.utc)
     scenario = [
         {"t": 0, "x": 0.1, "y": 0.15, "vis": True, "hand": False, "motion": 0.1, "head": 0.1, "linger": 0},

@@ -20,85 +20,69 @@ class CopilotResult:
 
 class AgenticCopilotService:
     def __init__(self) -> None:
-        self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
-        self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        self.provider = os.getenv("COPILOT_PROVIDER", "ollama").strip().lower()
+        self.model = os.getenv("COPILOT_MODEL", "llama3.1:8b-instruct-q4_K_M")
+        self.ollama_url = os.getenv("OLLAMA_API_URL", "http://127.0.0.1:11434").rstrip("/")
         self._last_error: str = ""
         self._active_model: str | None = None
 
     def status(self) -> dict[str, object]:
+        live = self.provider == "local"
         return {
-            "enabled": bool(self.api_key),
-            "provider": "gemini",
+            "enabled": True,
+            "provider": self.provider,
             "model": self.model,
-            "mode": "live" if self.api_key else "fallback",
+            "mode": "live" if live else ("live" if self._active_model else "fallback"),
             "active_model": self._active_model,
             "last_error": self._last_error or None,
         }
 
     def generate_brief(self, context: dict[str, Any]) -> CopilotResult:
-        if not self.api_key:
-            return self._fallback_brief(context, "No API key configured. Using local reasoning mode.")
+        if self.provider == "local":
+            return self._fallback_brief(context, "Local copilot mode active.")
         prompt = self._brief_prompt(context)
-        response_text = self._call_gemini(prompt)
+        response_text = self._call_ollama(prompt)
         if response_text is None:
-            return self._fallback_brief(context, "Gemini unavailable. Using local reasoning mode.")
-        return self._parse_response(response_text, source="gemini")
+            return self._fallback_brief(context, "Ollama unavailable. Using local reasoning mode.")
+        return self._parse_response(response_text, source="ollama")
 
     def answer_question(self, question: str, context: dict[str, Any]) -> CopilotResult:
-        if not self.api_key:
-            return self._fallback_qa(question, context, "No API key configured. Using local reasoning mode.")
+        if self.provider == "local":
+            return self._fallback_qa(question, context, "Local copilot mode active.")
         prompt = self._qa_prompt(question, context)
-        response_text = self._call_gemini(prompt)
+        response_text = self._call_ollama(prompt)
         if response_text is None:
-            return self._fallback_qa(question, context, "Gemini unavailable. Using local reasoning mode.")
-        return self._parse_response(response_text, source="gemini")
+            return self._fallback_qa(question, context, "Ollama unavailable. Using local reasoning mode.")
+        return self._parse_response(response_text, source="ollama")
 
-    def _call_gemini(self, prompt: str) -> str | None:
-        if not self.api_key:
-            self._last_error = "api_key_missing"
-            return None
-        candidate_models = [
-            self.model,
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
-        ]
+    def _call_ollama(self, prompt: str) -> str | None:
         try:
-            with httpx.Client(timeout=12.0) as client:
-                for model_name in candidate_models:
-                    endpoint = (
-                        "https://generativelanguage.googleapis.com/v1beta/models/"
-                        f"{model_name}:generateContent"
-                    )
-                    resp = client.post(
-                        f"{endpoint}?key={self.api_key}",
-                        json={
-                            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                            "generationConfig": {
-                                "temperature": 0.2,
-                                "maxOutputTokens": 500,
-                                "responseMimeType": "application/json",
-                            },
+            with httpx.Client(timeout=20.0) as client:
+                resp = client.post(
+                    f"{self.ollama_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "format": "json",
+                        "options": {
+                            "temperature": 0.2,
                         },
-                    )
-                    if resp.status_code != 200:
-                        self._last_error = f"{model_name}:{resp.status_code}"
-                        continue
-                    payload = resp.json()
-                    text = (
-                        payload.get("candidates", [{}])[0]
-                        .get("content", {})
-                        .get("parts", [{}])[0]
-                        .get("text")
-                    )
-                    if text:
-                        self._active_model = model_name
-                        self._last_error = ""
-                        return text
+                    },
+                )
+                if resp.status_code != 200:
+                    self._last_error = f"ollama:{resp.status_code}"
+                    return None
+                payload = resp.json()
+                text = payload.get("response")
+                if text:
+                    self._active_model = self.model
+                    self._last_error = ""
+                    return text
+                self._last_error = "ollama_empty_response"
                 return None
         except Exception:
-            self._last_error = "network_or_provider_error"
+            self._last_error = "ollama_unreachable"
             return None
 
     def _brief_prompt(self, context: dict[str, Any]) -> str:

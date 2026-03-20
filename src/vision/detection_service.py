@@ -26,6 +26,7 @@ class DetectionService:
         self._load_errors: dict[str, str] = {}
         self._device: str = "unknown"
         self._model_path = os.getenv("DETECTOR_MODEL_PATH", "yolov8s.pt")
+        self._pretrained_model = os.getenv("DETECTOR_PRETRAINED_MODEL", "yolo11m.pt")
         self._forced_device = os.getenv("DETECTOR_DEVICE")
 
     def detect(
@@ -35,10 +36,18 @@ class DetectionService:
         max_detections: int = 20,
         model_variant: str = "pretrained",
     ) -> DetectionResult:
-        model_path = self._resolve_model_path(model_variant)
-        model = self._ensure_model(model_path)
+        model: Any | None = None
+        selected_model_path: str | None = None
+        for candidate in self._resolve_model_candidates(model_variant):
+            model = self._ensure_model(candidate)
+            if model is not None:
+                selected_model_path = candidate
+                break
         if model is None:
-            message = self._load_errors.get(model_path) or "Detector unavailable."
+            message = (
+                self._load_errors.get(self._resolve_model_path(model_variant))
+                or "Detector unavailable."
+            )
             return DetectionResult(
                 detections=[],
                 model_ready=False,
@@ -88,7 +97,7 @@ class DetectionService:
             return DetectionResult(
                 detections=parsed[:max_detections],
                 model_ready=True,
-                message="ok",
+                message=f"ok:{selected_model_path}",
                 device=self._device,
             )
         except Exception as exc:
@@ -129,4 +138,36 @@ class DetectionService:
         if variant == "custom":
             return self._model_path
         # Pretrained COCO model for broad object classes.
-        return "yolov8s.pt"
+        return self._pretrained_model
+
+    def _resolve_model_candidates(self, model_variant: str) -> list[str]:
+        variant = model_variant.lower().strip()
+        if variant == "custom":
+            return [self._model_path]
+        # Prefer advanced modern models first, then robust fallbacks.
+        candidates = [
+            self._pretrained_model,
+            "yolo11m.pt",
+            "yolo11s.pt",
+            "yolov10m.pt",
+            "yolov9e.pt",
+            "yolov8x.pt",
+            "yolov8s.pt",
+        ]
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for item in candidates:
+            key = item.strip()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            ordered.append(key)
+        return ordered
+
+    def status(self) -> dict[str, object]:
+        return {
+            "device": self._device,
+            "loaded_models": list(self._models.keys()),
+            "load_errors": dict(self._load_errors),
+            "pretrained_model": self._pretrained_model,
+        }

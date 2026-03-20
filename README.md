@@ -68,6 +68,9 @@ flowchart LR
 - Local fine-tuning workflow for custom detector training on retail-relevant classes.
 - Agentic copilot APIs for incident briefs and contextual operator Q&A.
 - Human review workflow with filtering, export, and incident lifecycle controls.
+- SQLite-backed persistent incident repository with retention policy controls.
+- Audit timeline + evidence package per incident (clip, detector snapshot, POS correlation, reasoning chain).
+- Production role policy for review/export operations and request correlation headers.
 
 ## Visual dashboard
 
@@ -131,6 +134,9 @@ uvicorn src.agent.main:app --reload --port 8080
 
 This installs CUDA-enabled PyTorch (`cu121`) and runs YOLO inference on `cuda:0` when available.
 
+Advanced pretrained detector:
+- Default pretrained detector is set to `yolo11m.pt` (with automatic fallback to other YOLO families if unavailable).
+
 ### Download retail-relevant dataset assets
 
 ```powershell
@@ -187,27 +193,75 @@ Demo endpoints:
 - `POST /demo/run` run multi-stage theft scenario with zone progression
 - `GET /vision/events` suspicious event stream
 - `POST /vision/detect-frame` real-time object detection for UI overlay
-- `GET /copilot/status` agentic copilot status (Gemini/fallback mode)
+- `GET /copilot/status` agentic copilot status (Ollama/local fallback mode)
 - `GET /copilot/brief` live AI operations brief with risk + actions
 - `POST /copilot/chat` ask copilot natural-language questions
 - `GET /incidents` processed incident objects
+- `GET /incidents/{incident_id}/evidence` export JSON evidence bundle
 - `GET /metrics` dashboard counters
+- `GET /metrics/extended` endpoint-latency and API config telemetry
 - `GET /behavior/history` recent micro-behavior signals
 - `GET /zones` store layout and zone metadata
+- `GET /health/dependencies` detector/copilot/dependency health details
 
-## Agentic Copilot (Gemini + FastAPI)
+## Agentic Copilot (Ollama + FastAPI)
 
 The dashboard now includes an **Agentic Copilot** that explains what is happening,
 estimates risk level, suggests actions, and answers operator questions.
 
-Configure Gemini (optional, recommended):
+Run in guaranteed local mode (no external API dependency):
 
 ```powershell
-$env:GEMINI_API_KEY = "your_key_here"
-$env:GEMINI_MODEL = "gemini-2.5-flash"
+$env:COPILOT_PROVIDER = "local"
 ```
 
-If key is not configured, copilot runs in deterministic local fallback mode.
+Optional local LLM mode with Ollama:
+
+```powershell
+$env:COPILOT_PROVIDER = "ollama"
+$env:COPILOT_MODEL = "llama3.1:8b-instruct-q4_K_M"
+$env:OLLAMA_API_URL = "http://127.0.0.1:11434"
+```
+
+If Ollama is unavailable, copilot automatically falls back to deterministic local reasoning.
+
+## Azure hosting readiness
+
+The repository now supports direct hosting on Azure App Service:
+
+- Single-container Docker deployment target
+- Health endpoint at `/health` for platform checks
+- Environment-driven runtime config for detector + copilot
+
+Recommended App Service startup env vars:
+
+```text
+AGENT_PORT=8080
+APP_ENV=production
+CORS_ALLOWED_ORIGINS=https://<your-app>.azurewebsites.net
+COPILOT_PROVIDER=local
+DETECTOR_PRETRAINED_MODEL=yolo11m.pt
+DETECTOR_DEVICE=cpu
+API_TOKEN=<strong-random-token>
+```
+
+## Essential production hardening included
+
+- Environment-driven CORS policy (no wildcard by default)
+- Optional API token guard (`X-API-Token`) for sensitive write/compute routes
+- Basic per-client rate limits on heavy endpoints (`/vision/detect-frame`, `/copilot/chat`)
+- Payload size guard for detection frame uploads
+
+Sensitive routes that support API token:
+- `POST /vision/detect-frame`
+- `POST /incidents/{incident_id}/review`
+- `POST /demo/run`
+- `GET /incidents/export.csv`
+- `GET /incidents/{incident_id}/evidence`
+
+Production governance headers:
+- `X-API-Token` for protected endpoints
+- `X-Actor-Role` (`analyst`, `manager`, `admin`, `auditor`) for policy enforcement in non-dev environments
 
 ## Docker run
 
