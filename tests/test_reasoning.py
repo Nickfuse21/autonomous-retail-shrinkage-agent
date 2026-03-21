@@ -54,7 +54,7 @@ def test_chain_includes_risk_factors() -> None:
         observed_sku="sku-phone-001",
         final_confidence=0.91,
     )
-    conf_step = [l for l in chain.links if l.step.value == "confidence_assessment"][0]
+    conf_step = [link for link in chain.links if link.step.value == "confidence_assessment"][0]
     assert "high-confidence behavioral pattern" in conf_step.description
     assert "exit-directed trajectory" in conf_step.description
     assert "no POS scan match" in conf_step.description
