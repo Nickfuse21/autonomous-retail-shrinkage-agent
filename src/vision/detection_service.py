@@ -12,13 +12,14 @@ class DetectionResult:
     model_ready: bool
     message: str
     device: str
+    model_file: str | None = None
 
 
 class DetectionService:
     """Lazy-loaded object detector wrapper.
 
-    Uses YOLOv8 models if available, but degrades gracefully when dependencies
-    are not installed so the rest of the app continues to work.
+    Default pretrained weights are YOLOv8 (stable Ultralytics stack), with graceful
+    fallbacks when dependencies or weight files are missing.
     """
 
     def __init__(self) -> None:
@@ -26,7 +27,7 @@ class DetectionService:
         self._load_errors: dict[str, str] = {}
         self._device: str = "unknown"
         self._model_path = os.getenv("DETECTOR_MODEL_PATH", "yolov8s.pt")
-        self._pretrained_model = os.getenv("DETECTOR_PRETRAINED_MODEL", "yolo11m.pt")
+        self._pretrained_model = os.getenv("DETECTOR_PRETRAINED_MODEL", "yolov8m.pt")
         self._forced_device = os.getenv("DETECTOR_DEVICE")
 
     def detect(
@@ -53,6 +54,7 @@ class DetectionService:
                 model_ready=False,
                 message=message,
                 device=self._device,
+                model_file=None,
             )
 
         try:
@@ -63,6 +65,7 @@ class DetectionService:
                 model_ready=False,
                 message="Pillow is required for frame decoding.",
                 device=self._device,
+                model_file=None,
             )
 
         try:
@@ -99,6 +102,7 @@ class DetectionService:
                 model_ready=True,
                 message=f"ok:{selected_model_path}",
                 device=self._device,
+                model_file=selected_model_path,
             )
         except Exception as exc:
             return DetectionResult(
@@ -106,6 +110,7 @@ class DetectionService:
                 model_ready=False,
                 message=f"detection_failed: {exc.__class__.__name__}",
                 device=self._device,
+                model_file=selected_model_path,
             )
 
     def _ensure_model(self, model_path: str) -> Any | None:
@@ -144,15 +149,18 @@ class DetectionService:
         variant = model_variant.lower().strip()
         if variant == "custom":
             return [self._model_path]
-        # Prefer advanced modern models first, then robust fallbacks.
+        # Prefer YOLOv8 (stable default path), then other families if weights missing.
         candidates = [
             self._pretrained_model,
+            "yolov8m.pt",
+            "yolov8s.pt",
+            "yolov8l.pt",
+            "yolov8x.pt",
+            "yolov8n.pt",
             "yolo11m.pt",
             "yolo11s.pt",
             "yolov10m.pt",
             "yolov9e.pt",
-            "yolov8x.pt",
-            "yolov8s.pt",
         ]
         seen: set[str] = set()
         ordered: list[str] = []

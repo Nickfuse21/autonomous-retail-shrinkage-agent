@@ -546,6 +546,11 @@
       font-family: inherit;
     }
     .nvr-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+    .nvr-toolbar button.active {
+      border-color: rgba(52, 211, 153, 0.55);
+      color: #86efac;
+      background: rgba(52, 211, 153, 0.12);
+    }
     .nvr-rec {
       margin-left: auto;
       font-size: 10px;
@@ -594,6 +599,9 @@
       transform: scale(1);
       filter: saturate(1) contrast(1);
     }
+    .camera-box.feed-ready #cameraFeed.mirror-preview {
+      transform: scaleX(-1) scale(1);
+    }
     .camera-overlay {
       position: absolute; inset: 0; pointer-events: none;
       border: 2px solid transparent; border-radius: var(--radius);
@@ -610,6 +618,37 @@
     }
     .camera-overlay.alert { border-color: var(--red); }
     .camera-overlay.clear { border-color: var(--green); }
+    .camera-detect-meta {
+      position: absolute;
+      top: 52px;
+      right: 12px;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .det-meta-chip {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: ui-monospace, monospace;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .det-meta-chip.dim {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 10px;
+    }
     .camera-hud {
       position: absolute; top: 16px; left: 16px;
       display: flex; gap: 8px; align-items: center;
@@ -1048,7 +1087,7 @@
   <div class="status-cell"><span>Last Alert</span><span class="v" id="sbLastAlert">--</span></div>
   <div class="status-cell"><span>Open Incidents</span><span class="v" id="sbOpenIncidents">0</span></div>
   <div class="status-cell"><span>Frames/min</span><span class="v" id="sbFpm">0</span></div>
-  <div class="status-cell"><span>Detector</span><span class="v" id="sbDetectorModel">Pretrained</span></div>
+  <div class="status-cell"><span>Detector</span><span class="v" id="sbDetectorModel">YOLOv8</span></div>
   <div class="status-cell"><span>Copilot</span><span class="v" id="sbCopilotMode">Live</span></div>
   <div class="status-cell"><span>API</span><span class="v" id="sbApiHealth">OK</span></div>
   <div class="status-cell"><span>Sync</span><span class="v"><span id="sbLastSync">--</span><br><span class="mono-clip" id="sbCorrId" title="Last request correlation ID">--</span></span></div>
@@ -1125,6 +1164,8 @@
       <div class="nvr-toolbar">
         <button type="button" id="nvrFs" title="Fullscreen video">⛶ Full</button>
         <button type="button" id="nvrGrid" title="Alignment grid">Grid</button>
+        <button type="button" id="nvrMirror" title="Mirror camera (selfie-style preview)">Mirror</button>
+        <button type="button" id="nvrReticle" title="Center crosshair for framing">Reticle</button>
         <button type="button" id="nvrSnap" title="Log snapshot marker">Mark</button>
         <span class="nvr-rec"><span class="nvr-dot"></span> LIVE</span>
       </div>
@@ -1134,6 +1175,11 @@
       <div class="camera-hud">
         <div class="live-dot"></div>
         <div class="live-label" id="feedLabel">Live</div>
+      </div>
+      <div class="camera-detect-meta" id="cameraDetectMeta" aria-live="polite">
+        <span class="det-meta-chip" id="hudDetModel">YOLOv8</span>
+        <span class="det-meta-chip dim" id="hudDetLatency">— ms</span>
+        <span class="det-meta-chip dim" id="hudDetFps">— /s</span>
       </div>
       <div class="camera-status">
         <div class="stat"><div class="val" id="hudFrames">0</div><div class="lbl">Frames</div></div>
@@ -1180,7 +1226,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px;">
           <span>Model</span>
           <select id="detectorModelVariant" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);color:var(--text);font-size:12px;">
-            <option value="pretrained">YOLO Pretrained (COCO)</option>
+            <option value="pretrained">YOLOv8 Pretrained (COCO)</option>
             <option value="custom">Custom Trained</option>
           </select>
         </div>
@@ -1506,6 +1552,9 @@
   let detectorModelVariant = localStorage.getItem('detectorModelVariant') || 'pretrained';
   let feedSimHandle = null;
   let pipelinePaused = false;
+  let mirrorCameraPreview = localStorage.getItem('mirrorCameraPreview') === '1';
+  let showDetectionReticle = localStorage.getItem('showDetectionReticle') === '1';
+  let inferLatencyEma = 0;
   let workspaceMode = localStorage.getItem('workspaceMode') || 'analyst';
   let apiToken = localStorage.getItem('apiToken') || '';
   let copilotBusy = false;
@@ -1600,6 +1649,13 @@
     });
   }
 
+  function syncMirrorUi() {
+    const v = document.getElementById('cameraFeed');
+    if (v) v.classList.toggle('mirror-preview', mirrorCameraPreview);
+    const bm = document.getElementById('nvrMirror');
+    if (bm) bm.classList.toggle('active', mirrorCameraPreview);
+  }
+
   function initNvrToolbar() {
     const box = document.getElementById('cameraBox');
     const vid = document.getElementById('cameraFeed');
@@ -1624,6 +1680,18 @@
     });
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) box?.classList.remove('nvr-fullscreen');
+    });
+    document.getElementById('nvrMirror')?.addEventListener('click', () => {
+      mirrorCameraPreview = !mirrorCameraPreview;
+      localStorage.setItem('mirrorCameraPreview', mirrorCameraPreview ? '1' : '0');
+      syncMirrorUi();
+      showToast(mirrorCameraPreview ? 'Mirror preview on (matches inference frame)' : 'Mirror off', 'ok');
+    });
+    document.getElementById('nvrReticle')?.addEventListener('click', () => {
+      showDetectionReticle = !showDetectionReticle;
+      localStorage.setItem('showDetectionReticle', showDetectionReticle ? '1' : '0');
+      document.getElementById('nvrReticle')?.classList.toggle('active', showDetectionReticle);
+      showToast(showDetectionReticle ? 'Center reticle on' : 'Reticle off', 'ok');
     });
     document.getElementById('nvrSnap')?.addEventListener('click', () => {
       showToast(`Marked @ ${new Date().toLocaleTimeString()}`, 'ok');
@@ -1659,12 +1727,14 @@
       if (box) box.classList.add('feed-ready');
       cameraActive = true;
       document.getElementById('feedLabel').textContent = 'Live';
+      syncMirrorUi();
       startFeedSimulation();
       startDetectionLoop();
     } catch {
       video.poster = '';
       video.style.background = 'linear-gradient(135deg,#0a0a0a,#1a1a2e)';
       if (box) box.classList.add('feed-ready');
+      syncMirrorUi();
       document.getElementById('feedLabel').textContent = 'Simulated';
       cameraActive = false;
       startFeedSimulation();
@@ -1792,7 +1862,7 @@
     if (countEl && Number.isFinite(count)) countEl.textContent = String(count);
     const barMode = document.getElementById('sbDetectorModel');
     if (barMode) {
-      const modelName = detectorModelVariant === 'custom' ? 'Custom' : 'Pretrained';
+      const modelName = detectorModelVariant === 'custom' ? 'Custom' : 'YOLOv8';
       barMode.textContent = `${modelName} / ${device || 'N/A'}`;
     }
   }
@@ -1809,6 +1879,7 @@
     const video = document.getElementById('cameraFeed');
     if (!video || !video.videoWidth || !video.videoHeight) return;
     detectorBusy = true;
+    const tInfer0 = performance.now();
     try {
       const capture = captureCurrentFrameBase64(video);
       if (!capture) return;
@@ -1833,6 +1904,17 @@
         ? `Live detection active (${detections.length} objects)`
         : `Detector not ready: ${data.message || 'unknown'}`;
       setDetectorStatus(statusMsg, data.device || 'unknown', detections.length);
+      const lat = performance.now() - tInfer0;
+      inferLatencyEma = inferLatencyEma === 0 ? lat : inferLatencyEma * 0.65 + lat * 0.35;
+      const latEl = document.getElementById('hudDetLatency');
+      const fpsEl = document.getElementById('hudDetFps');
+      const modEl = document.getElementById('hudDetModel');
+      if (latEl) latEl.textContent = `${Math.round(inferLatencyEma)} ms`;
+      if (fpsEl && inferLatencyEma > 0) fpsEl.textContent = `${(1000 / inferLatencyEma).toFixed(1)} infer/s`;
+      if (modEl) {
+        const mf = data.model_file;
+        modEl.textContent = mf ? String(mf).replace(/\.pt$/i, '') : detectorModelVariant === 'custom' ? 'custom' : 'YOLOv8';
+      }
     } catch {
       setDetectorStatus('Detector request failed.', 'unknown', 0);
     } finally {
@@ -1852,6 +1934,11 @@
     canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (mirrorCameraPreview) {
+      ctx.translate(targetW, 0);
+      ctx.scale(-1, 1);
+    }
     ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', profile.jpegQuality);
     const imageBase64 = dataUrl.split(',')[1] || null;
@@ -1884,9 +1971,19 @@
       const y = d.y1 * sy;
       const w = (d.x2 - d.x1) * sx;
       const h = (d.y2 - d.y1) * sy;
-      const label = `${d.label} ${(Number(d.confidence || 0) * 100).toFixed(0)}%`;
-      ctx.strokeStyle = 'rgba(41, 151, 255, 0.95)';
-      ctx.fillStyle = 'rgba(41, 151, 255, 0.18)';
+      const conf = Number(d.confidence || 0);
+      const label = `${d.label} ${(conf * 100).toFixed(0)}%`;
+      let stroke = 'rgba(41, 151, 255, 0.95)';
+      let fill = 'rgba(41, 151, 255, 0.18)';
+      if (conf >= 0.65) {
+        stroke = 'rgba(52, 211, 153, 0.95)';
+        fill = 'rgba(52, 211, 153, 0.16)';
+      } else if (conf < 0.4) {
+        stroke = 'rgba(251, 191, 36, 0.92)';
+        fill = 'rgba(251, 191, 36, 0.12)';
+      }
+      ctx.strokeStyle = stroke;
+      ctx.fillStyle = fill;
       ctx.fillRect(x, y, w, h);
       ctx.strokeRect(x, y, w, h);
       const tw = ctx.measureText(label).width + 10 * dpr;
@@ -1896,6 +1993,21 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillText(label, x + 5 * dpr, Math.max(12 * dpr, y - 5 * dpr));
     });
+    if (showDetectionReticle) {
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      ctx.lineWidth = 1 * dpr;
+      ctx.setLineDash([5 * dpr, 5 * dpr]);
+      ctx.beginPath();
+      ctx.moveTo(cx, 0);
+      ctx.lineTo(cx, canvas.height);
+      ctx.moveTo(0, cy);
+      ctx.lineTo(canvas.width, cy);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // ── Data refresh ──
@@ -2541,10 +2653,12 @@
     select.addEventListener('change', () => {
       detectorModelVariant = select.value;
       localStorage.setItem('detectorModelVariant', detectorModelVariant);
-      addAction(`Detector model switched to ${detectorModelVariant === 'pretrained' ? 'YOLO PRETRAINED' : 'CUSTOM TRAINED'}.`, 'accent');
+      addAction(`Detector model switched to ${detectorModelVariant === 'pretrained' ? 'YOLOv8 PRETRAINED' : 'CUSTOM TRAINED'}.`, 'accent');
       const barMode = document.getElementById('sbDetectorModel');
-      if (barMode) barMode.textContent = detectorModelVariant === 'custom' ? 'Custom' : 'Pretrained';
+      if (barMode) barMode.textContent = detectorModelVariant === 'custom' ? 'Custom' : 'YOLOv8';
     });
+    const barInit = document.getElementById('sbDetectorModel');
+    if (barInit) barInit.textContent = detectorModelVariant === 'custom' ? 'Custom' : 'YOLOv8';
   }
 
   function initCommandBarActions() {
@@ -2766,6 +2880,8 @@
   initWorkspaceShell();
   initDockCollapse();
   initNvrToolbar();
+  syncMirrorUi();
+  document.getElementById('nvrReticle')?.classList.toggle('active', showDetectionReticle);
   initLiveWorkbench();
   initDetectorProfileControls();
   initDetectorModelControls();

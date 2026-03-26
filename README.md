@@ -81,7 +81,7 @@ Open `http://localhost:8080/` to access a polished operations dashboard with:
 - **Pipeline control:** pause/resume vision observation posts and YOLO calls (keyboard `P`)
 - **Detector tuning:** live confidence threshold slider (syncs with speed/balanced/accuracy profiles)
 - Status bar: last sync time, last API **correlation ID** (support/debug), and API health
-- Live object-detection overlays (bounding boxes + labels) on camera layout
+- Live object-detection overlays (bounding boxes + labels) on camera layout; confidence-colored boxes (green high / amber low), **Mirror** (preview matches inference frame), **Reticle** crosshair, and on-screen **weights name + inference latency**
 - Incident metrics and real-time event stream
 - Explainable reasoning chain panel (latest verdict with steps)
 - Behavioral timeline (micro-behavior chips)
@@ -140,7 +140,7 @@ uvicorn src.agent.main:app --reload --port 8080
 This installs CUDA-enabled PyTorch (`cu121`) and runs YOLO inference on `cuda:0` when available.
 
 Advanced pretrained detector:
-- Default pretrained detector is set to `yolo11m.pt` (with automatic fallback to other YOLO families if unavailable).
+- Default pretrained detector is **YOLOv8** (`yolov8m.pt`) with automatic fallback to other YOLOv8 sizes, then newer YOLO families if weights are missing.
 
 ### Download retail-relevant dataset assets
 
@@ -247,7 +247,7 @@ AGENT_PORT=8080
 APP_ENV=production
 CORS_ALLOWED_ORIGINS=https://<your-app>.azurewebsites.net
 COPILOT_PROVIDER=local
-DETECTOR_PRETRAINED_MODEL=yolo11m.pt
+DETECTOR_PRETRAINED_MODEL=yolov8m.pt
 DETECTOR_DEVICE=cpu
 API_TOKEN=<strong-random-token>
 ```

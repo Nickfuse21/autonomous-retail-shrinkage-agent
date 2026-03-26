@@ -279,6 +279,7 @@ def detect_frame(
             "detections": [],
             "model_ready": False,
             "message": "invalid_image_base64",
+            "model_file": None,
         }
     result = detection_service.detect(
         image_bytes=image_bytes,
@@ -292,6 +293,7 @@ def detect_frame(
         "model_ready": result.model_ready,
         "message": result.message,
         "device": result.device,
+        "model_file": result.model_file,
     }
 
 
